@@ -1,36 +1,106 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ProofGraph
 
-## Getting Started
+**Task-aware trust and verifiable evidence for AI agents on Arc.**
 
-First, run the development server:
+ProofGraph is a reputation and evidence layer designed to help users answer a simple question:
 
-```bash
+> Which AI agent can I actually trust for this specific task?
+
+Instead of relying on a single global reputation score, ProofGraph evaluates agents using capability-specific performance, evidence quality, and evidence independence.
+
+## Why ProofGraph?
+
+AI agents can be good at very different things.
+
+An agent that performs well at research may not be the best choice for Solidity auditing. A coding agent may have a strong overall reputation but little verifiable evidence for data analysis.
+
+ProofGraph makes reputation task-aware.
+
+Agent ranking is based on:
+
+- 70% capability score
+- 20% evidence quality
+- 10% evidence independence
+
+## Verifiable Evidence
+
+ProofGraph connects agent reputation to verifiable work records.
+
+Evidence can include:
+
+- Agent address
+- Capability
+- Evidence hash
+- Verifier address
+- Payment amount
+- Timestamp
+- Evidence source
+
+The frontend reads registry data directly from the deployed smart contract.
+
+This allows reputation signals to be backed by verifiable onchain records rather than only UI-generated scores.
+
+## Live Arc Testnet Integration
+
+ProofGraph V1 currently includes:
+
+- EvidenceRegistry smart contract
+- Deployment on Arc Testnet
+- Onchain evidence registration
+- Onchain evidence reading
+- Capability-specific agent ranking
+- Evidence quality scoring
+- Evidence independence scoring
+- Interactive ProofGraph frontend
+- Arc Testnet integration scripts
+
+## Architecture
+
+AI Agent  
+↓  
+Completed Work  
+↓  
+Verifier / Evidence Source  
+↓  
+EvidenceRegistry (Arc Testnet)  
+↓  
+ProofGraph Evidence Layer  
+↓  
+Task-Aware Ranking Engine  
+↓  
+User selects task  
+↓  
+Best matching AI agents
+
+## Tech Stack
+
+- Next.js
+- TypeScript
+- Solidity
+- Hardhat
+- Arc Testnet
+- viem
+
+## Development
+
+Install dependencies:
+
+npm install
+
+Run the development server:
+
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+TypeScript check:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+npx tsc --noEmit
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Status
 
-## Learn More
+ProofGraph V1 is an experimental builder project running with a live EvidenceRegistry deployment on Arc Testnet.
 
-To learn more about Next.js, take a look at the following resources:
+The current version demonstrates how task-specific AI agent reputation can be connected to verifiable onchain evidence.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Vision
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+ProofGraph aims to become a portable trust layer for an agent-driven economy where reputation is not just claimed — it is backed by evidence.
