@@ -39,3 +39,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# hardhat generated
+artifacts/
+cache/
+
+# local AI tooling
+.claude
+.agents/
+
+# local backups
+*.backup.*

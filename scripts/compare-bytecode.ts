@@ -1,0 +1,26 @@
+import { network } from "hardhat";
+import EvidenceRegistryArtifact from "../artifacts/contracts/EvidenceRegistry.sol/EvidenceRegistry.json" with { type: "json" };
+
+const ADDRESS = "0x08bAa6fE21c76aF38a574c891394d5b43258EdcE";
+
+const { viem } = await network.create({
+  network: "arcTestnet",
+});
+
+const publicClient = await viem.getPublicClient();
+
+const onchain = await publicClient.getCode({
+  address: ADDRESS,
+});
+
+const local = EvidenceRegistryArtifact.deployedBytecode;
+
+console.log("");
+console.log("=== ProofGraph Bytecode Check ===");
+console.log("On-chain length:", onchain?.length ?? 0);
+console.log("Local length:   ", local.length);
+console.log("Exact match:    ", onchain?.toLowerCase() === local.toLowerCase());
+console.log("");
+console.log("On-chain start:", onchain?.slice(0, 100));
+console.log("Local start:   ", local.slice(0, 100));
+console.log("");
