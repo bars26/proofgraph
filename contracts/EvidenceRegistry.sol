@@ -17,6 +17,7 @@ contract EvidenceRegistry {
 
     mapping(uint256 => Evidence) private evidences;
     mapping(address => uint256[]) private agentEvidenceIds;
+    mapping(address => mapping(bytes32 => uint256[])) private agentCapabilityEvidenceIds;
 
     event EvidenceRegistered(
         uint256 indexed id,
@@ -53,6 +54,7 @@ contract EvidenceRegistry {
         });
 
         agentEvidenceIds[agent].push(id);
+        agentCapabilityEvidenceIds[agent][keccak256(bytes(capability))].push(id);
 
         emit EvidenceRegistered(
             id,
@@ -78,6 +80,13 @@ contract EvidenceRegistry {
         address agent
     ) external view returns (uint256[] memory) {
         return agentEvidenceIds[agent];
+    }
+
+    function getAgentCapabilityEvidenceIds(
+        address agent,
+        string calldata capability
+    ) external view returns (uint256[] memory) {
+        return agentCapabilityEvidenceIds[agent][keccak256(bytes(capability))];
     }
 
     function getAgentEvidenceCount(
