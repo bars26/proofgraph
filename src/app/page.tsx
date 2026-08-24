@@ -30,6 +30,7 @@ type OnchainEvidence = {
 
 type Agent = {
   name: string;
+  address?: `0x${string}`;
   evidence: number;
   independence: number;
   skills: {
@@ -171,13 +172,30 @@ const agents: Agent[] = [
   },
 ];
 
-function getTaskMatch(agent: Agent, task: Task) {
+function getTaskMatch(
+  agent: Agent,
+  task: Task,
+  onchainEvidence: OnchainEvidence | null,
+  liveCapabilityEvidence = 0
+) {
   const capability =
     task === "Solidity Audit" ? agent.skills.Solidity : agent.skills[task];
 
+  const hasMatchingOnchainEvidence =
+    Boolean(agent.address) &&
+    Boolean(onchainEvidence) &&
+    agent.address?.toLowerCase() === onchainEvidence?.agent.toLowerCase() &&
+    onchainEvidence?.capability === task;
+
+  const liveEvidenceBonus = hasMatchingOnchainEvidence
+    ? Math.min(liveCapabilityEvidence * 2, 10)
+    : 0;
+
+  const evidenceScore = Math.min(agent.evidence + liveEvidenceBonus, 100);
+
   const score =
     capability * 0.7 +
-    agent.evidence * 0.2 +
+    evidenceScore * 0.2 +
     agent.independence * 0.1;
 
   return Math.round(score);
@@ -242,10 +260,15 @@ export default function Home() {
     return agents
       .map((agent) => ({
         ...agent,
-        match: getTaskMatch(agent, selectedTask),
+        match: getTaskMatch(
+          agent,
+          selectedTask,
+          onchainEvidence,
+          Number(researchEvidenceCount)
+        ),
       }))
       .sort((a, b) => b.match - a.match);
-  }, [selectedTask]);
+  }, [selectedTask, onchainEvidence, researchEvidenceCount]);
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
