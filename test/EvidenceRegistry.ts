@@ -108,6 +108,54 @@ describe("EvidenceRegistry", async function () {
     assert.deepEqual(codingIds, [2n]);
   });
 
+  it("returns evidence count by capability for an agent", async function () {
+    const registry = await deployRegistry();
+    const [, agent] = await viem.getWalletClients();
+
+    const researchHash = keccak256(stringToHex("count-research"));
+    const codingHash = keccak256(stringToHex("count-coding"));
+
+    await registry.write.registerEvidence([
+      agent.account.address,
+      "Research",
+      researchHash,
+    ]);
+
+    await registry.write.registerEvidence([
+      agent.account.address,
+      "Research",
+      researchHash,
+    ]);
+
+    await registry.write.registerEvidence([
+      agent.account.address,
+      "Coding",
+      codingHash,
+    ]);
+
+    const researchCount =
+      await registry.read.getAgentCapabilityEvidenceCount([
+        agent.account.address,
+        "Research",
+      ]);
+
+    const codingCount =
+      await registry.read.getAgentCapabilityEvidenceCount([
+        agent.account.address,
+        "Coding",
+      ]);
+
+    const missingCount =
+      await registry.read.getAgentCapabilityEvidenceCount([
+        agent.account.address,
+        "Data Analysis",
+      ]);
+
+    assert.equal(researchCount, 2n);
+    assert.equal(codingCount, 1n);
+    assert.equal(missingCount, 0n);
+  });
+
   it("rejects the zero address as an agent", async function () {
     const registry = await deployRegistry();
 

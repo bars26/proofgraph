@@ -89,6 +89,13 @@ contract EvidenceRegistry {
         return agentCapabilityEvidenceIds[agent][keccak256(bytes(capability))];
     }
 
+    function getAgentCapabilityEvidenceCount(
+        address agent,
+        string calldata capability
+    ) external view returns (uint256) {
+        return agentCapabilityEvidenceIds[agent][keccak256(bytes(capability))].length;
+    }
+
     function getAgentEvidenceCount(
         address agent
     ) external view returns (uint256) {
