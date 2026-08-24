@@ -193,6 +193,7 @@ export default function Home() {
     useState<OnchainEvidence | null>(null);
 
   const [onchainCount, setOnchainCount] = useState<bigint>(0n);
+  const [researchEvidenceCount, setResearchEvidenceCount] = useState<bigint>(0n);
   const [arcLoading, setArcLoading] = useState(true);
   const [arcError, setArcError] = useState<string | null>(null);
 
@@ -216,6 +217,15 @@ export default function Home() {
           });
 
           setOnchainEvidence(evidence);
+
+          const researchCount = await publicClient.readContract({
+            address: evidenceRegistryAddress,
+            abi: evidenceRegistryAbi,
+            functionName: "getAgentCapabilityEvidenceCount",
+            args: [evidence.agent, "Research"],
+          });
+
+          setResearchEvidenceCount(researchCount);
         }
       } catch (error) {
         console.error(error);
@@ -298,6 +308,13 @@ export default function Home() {
                 </p>
                 <p className="mt-1">
                   {onchainCount.toString()}
+                </p>
+
+                <p className="mt-3 text-xs text-slate-500">
+                  Research Evidence
+                </p>
+                <p className="mt-1 font-semibold text-cyan-300">
+                  {researchEvidenceCount.toString()}
                 </p>
               </div>
 
