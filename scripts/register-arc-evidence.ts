@@ -9,7 +9,7 @@ const [wallet] = await viem.getWalletClients();
 const publicClient = await viem.getPublicClient();
 
 const registryAddress =
-  "0x08bAa6fE21c76aF38a574c891394d5b43258EdcE";
+  "0x865BF22320f07Bf23Dc384e314d29fad8A92B939";
 
 const registry = await viem.getContractAt(
   "EvidenceRegistry",
@@ -17,7 +17,7 @@ const registry = await viem.getContractAt(
 );
 
 const evidenceText =
-  "ProofGraph EvidenceRegistry v1 deployed on Arc Public Testnet";
+  "ProofGraph EvidenceRegistry v2 capability-aware registry on Arc Public Testnet";
 
 const evidenceHash = keccak256(
   stringToHex(evidenceText)

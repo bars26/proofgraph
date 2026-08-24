@@ -22,6 +22,14 @@ if (count > 0n) {
     args: [1n],
   });
 
+  const researchCount = await publicClient.readContract({
+    address: evidenceRegistryAddress,
+    abi: evidenceRegistryAbi,
+    functionName: "getAgentCapabilityEvidenceCount",
+    args: [evidence.agent, "Research"],
+  });
+
+  console.log("Research Evidence Count:", researchCount.toString());
   console.log("");
   console.log("Evidence #1");
   console.log("ID:", evidence.id.toString());

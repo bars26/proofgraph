@@ -1,0 +1,49 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_28-31f7497018f1271e89d8412ad200cf5c97409d0f",
+  "solcVersion": "0.8.28",
+  "solcLongVersion": "0.8.28+commit.7893614a",
+  "compilerType": "solc",
+  "toolVersions": {
+    "hardhat": "3.14.0"
+  },
+  "userSourceNameMap": {
+    "contracts/EvidenceRegistry.sol": "project/contracts/EvidenceRegistry.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "cancun",
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode.linkReferences",
+            "evm.bytecode.object",
+            "evm.bytecode.opcodes",
+            "evm.bytecode.sourceMap",
+            "evm.deployedBytecode.immutableReferences",
+            "evm.deployedBytecode.linkReferences",
+            "evm.deployedBytecode.object",
+            "evm.deployedBytecode.opcodes",
+            "evm.deployedBytecode.sourceMap",
+            "evm.methodIdentifiers"
+          ]
+        }
+      },
+      "remappings": []
+    },
+    "sources": {
+      "project/contracts/EvidenceRegistry.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.28;\n\n/// @title ProofGraph Evidence Registry\n/// @notice Stores verifiable evidence about AI agent work.\ncontract EvidenceRegistry {\n    struct Evidence {\n        uint256 id;\n        address agent;\n        string capability;\n        bytes32 evidenceHash;\n        address verifier;\n        uint256 timestamp;\n    }\n\n    uint256 public evidenceCount;\n\n    mapping(uint256 => Evidence) private evidences;\n    mapping(address => uint256[]) private agentEvidenceIds;\n    mapping(address => mapping(bytes32 => uint256[])) private agentCapabilityEvidenceIds;\n\n    event EvidenceRegistered(\n        uint256 indexed id,\n        address indexed agent,\n        string capability,\n        bytes32 evidenceHash,\n        address indexed verifier,\n        uint256 timestamp\n    );\n\n    error InvalidAgent();\n    error EmptyCapability();\n    error EmptyEvidenceHash();\n    error EvidenceNotFound(uint256 id);\n\n    function registerEvidence(\n        address agent,\n        string calldata capability,\n        bytes32 evidenceHash\n    ) external returns (uint256 id) {\n        if (agent == address(0)) revert InvalidAgent();\n        if (bytes(capability).length == 0) revert EmptyCapability();\n        if (evidenceHash == bytes32(0)) revert EmptyEvidenceHash();\n\n        id = ++evidenceCount;\n\n        evidences[id] = Evidence({\n            id: id,\n            agent: agent,\n            capability: capability,\n            evidenceHash: evidenceHash,\n            verifier: msg.sender,\n            timestamp: block.timestamp\n        });\n\n        agentEvidenceIds[agent].push(id);\n        agentCapabilityEvidenceIds[agent][keccak256(bytes(capability))].push(id);\n\n        emit EvidenceRegistered(\n            id,\n            agent,\n            capability,\n            evidenceHash,\n            msg.sender,\n            block.timestamp\n        );\n    }\n\n    function getEvidence(\n        uint256 id\n    ) external view returns (Evidence memory) {\n        if (id == 0 || id > evidenceCount) {\n            revert EvidenceNotFound(id);\n        }\n\n        return evidences[id];\n    }\n\n    function getAgentEvidenceIds(\n        address agent\n    ) external view returns (uint256[] memory) {\n        return agentEvidenceIds[agent];\n    }\n\n    function getAgentCapabilityEvidenceIds(\n        address agent,\n        string calldata capability\n    ) external view returns (uint256[] memory) {\n        return agentCapabilityEvidenceIds[agent][keccak256(bytes(capability))];\n    }\n\n    function getAgentCapabilityEvidenceCount(\n        address agent,\n        string calldata capability\n    ) external view returns (uint256) {\n        return agentCapabilityEvidenceIds[agent][keccak256(bytes(capability))].length;\n    }\n\n    function getAgentEvidenceCount(\n        address agent\n    ) external view returns (uint256) {\n        return agentEvidenceIds[agent].length;\n    }\n}\n"
+      }
+    }
+  }
+}
