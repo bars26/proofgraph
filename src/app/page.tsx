@@ -92,6 +92,7 @@ const agents: Agent[] = [
   },
   {
     name: "ResearchAgent #11",
+    address: "0x4F80B5c475fcEd34fc9A07FfCcF39E1Adc1406bf",
     evidence: 93,
     independence: 87,
     skills: {
@@ -235,6 +236,8 @@ export default function Home() {
           });
 
           setOnchainEvidence(evidence);
+
+
 
           const researchCount = await publicClient.readContract({
             address: evidenceRegistryAddress,
