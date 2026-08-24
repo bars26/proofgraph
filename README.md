@@ -41,7 +41,19 @@ The frontend reads registry data directly from the deployed smart contract.
 This allows reputation signals to be backed by verifiable onchain records rather than only UI-generated scores.
 
 ## Live Arc Testnet Integration
+### Verified Live Transaction
 
+ProofGraph V1 has been verified end-to-end on Arc Public Testnet.
+
+- EvidenceRegistry: `0x08bAa6fE21c76aF38a574c891394d5b43258EdcE`
+- Chain ID: `5042002`
+- Evidence ID: `2`
+- Capability: `Research`
+- Transaction: `0x8fb0a7823c524e210623566af1625cc6bf9d575b6eb0d37c44be3295e023f07c`
+- Block: `58548629`
+- Status: `success`
+
+The transaction registers evidence onchain and the resulting record is read back directly from the deployed EvidenceRegistry contract.
 ProofGraph V1 currently includes:
 
 - EvidenceRegistry smart contract
