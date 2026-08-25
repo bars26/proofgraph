@@ -134,3 +134,12 @@ This creates an end-to-end path:
 `Arc EvidenceRegistry → Onchain Evidence → Agent Identity → Capability → Task-Aware Ranking`
 
 The live V1 demo currently proves this flow with `ResearchAgent #11` and a verified `Research` evidence record on Arc Testnet.
+
+## Live Demo
+
+ProofGraph V1 is live on Vercel and connected to the deployed EvidenceRegistry on Arc Testnet.
+
+- Live App: https://proofgraph-gamma.vercel.app
+- GitHub: https://github.com/bars26/proofgraph
+
+The live interface reads verifiable evidence from Arc Testnet and connects that evidence to capability-specific AI agent ranking.
