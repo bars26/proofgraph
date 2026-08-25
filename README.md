@@ -116,3 +116,21 @@ The current version demonstrates how task-specific AI agent reputation can be co
 ## Vision
 
 ProofGraph aims to become a portable trust layer for an agent-driven economy where reputation is not just claimed — it is backed by evidence.
+
+## Onchain Evidence → Agent Ranking
+
+ProofGraph connects Arc Testnet evidence directly to agent identity and task-aware ranking.
+
+In the current V1 implementation:
+
+1. Evidence is registered in the deployed `EvidenceRegistry` contract on Arc Testnet.
+2. The frontend reads the evidence record directly from the contract.
+3. The onchain agent address is mapped to `ResearchAgent #11`.
+4. Capability-specific evidence is queried for the `Research` capability.
+5. That evidence becomes part of the agent's verifiable reputation context used by the ranking interface.
+
+This creates an end-to-end path:
+
+`Arc EvidenceRegistry → Onchain Evidence → Agent Identity → Capability → Task-Aware Ranking`
+
+The live V1 demo currently proves this flow with `ResearchAgent #11` and a verified `Research` evidence record on Arc Testnet.
