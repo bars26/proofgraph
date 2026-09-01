@@ -24,7 +24,9 @@ import { arcTestnet } from "../src/lib/erc8004";
 import { EVIDENCE_REGISTRY_V2_ABI } from "../src/lib/evidenceV2";
 import { canonicalEvidenceJson, evidenceHashOf, type EvidenceDoc } from "../src/lib/evidenceDoc";
 
-const SEED_MNEMONIC = "test test test test test test test test test test test junk"; // testnet-only, public on purpose
+// ProofGraph-specific, testnet-only, committed on purpose so the seed is reproducible.
+// Verifier addresses: 0xF4C1..07BA, 0x906A..A3eC, 0xb427..94e4
+const SEED_MNEMONIC = "upgrade galaxy annual soul gossip mosquito thank betray sibling voyage ugly simple";
 const VERIFIER_COUNT = 3;
 const GAS_TOPUP = parseEther("2");
 const GAS_MIN = parseEther("0.5");
