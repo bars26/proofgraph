@@ -37,6 +37,16 @@ Function shapes (from Arc docs — must be re-confirmed against verified ABIs on
 - Reputation: `giveFeedback(uint256 agentId, int128 score, uint8, string, string, string, string, bytes32)` + a `NewFeedback`-style event.
 - Validation: `validationRequest(address validator, uint256 agentId, string uri, bytes32 hash)` → `validationResponse(bytes32 requestHash, uint8 status, string, bytes32, string)`.
 
+### ProofGraph V2 — deployed Day 3
+
+| Contract | Address (Arc Testnet) | Deployment |
+|---|---|---|
+| **EvidenceRegistryV2** | `0x99848Ff9527C38c371D5c892a00677b90387aF4a` | `ignition/deployments/evidence-registry-v2/` |
+
+Deployer: `0x4f80b5c475fced34fc9a07ffccf39e1adc1406bf`. Bytecode 4175 B. `evidenceCount` starts at 0.
+Wired into `.env.local` as `NEXT_PUBLIC_EVIDENCE_REGISTRY_V2` (gitignored).
+Explorer: https://testnet.arcscan.app/address/0x99848Ff9527C38c371D5c892a00677b90387aF4a
+
 ### ProofGraph V1 — both deployments live, DO NOT TOUCH
 
 | Label | Address | Bytecode | Used by |

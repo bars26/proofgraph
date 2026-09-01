@@ -20,9 +20,9 @@ import { network } from "hardhat";
 import { mnemonicToAccount } from "viem/accounts";
 import { createWalletClient, getContract, http, formatEther, parseEther, type Address } from "viem";
 
-import { arcTestnet } from "../src/lib/erc8004.ts";
-import { EVIDENCE_REGISTRY_V2_ABI } from "../src/lib/evidenceV2.ts";
-import { canonicalEvidenceJson, evidenceHashOf, type EvidenceDoc } from "../src/lib/evidenceDoc.ts";
+import { arcTestnet } from "../src/lib/erc8004";
+import { EVIDENCE_REGISTRY_V2_ABI } from "../src/lib/evidenceV2";
+import { canonicalEvidenceJson, evidenceHashOf, type EvidenceDoc } from "../src/lib/evidenceDoc";
 
 const SEED_MNEMONIC = "test test test test test test test test test test test junk"; // testnet-only, public on purpose
 const VERIFIER_COUNT = 3;
