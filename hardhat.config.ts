@@ -43,7 +43,7 @@ export default defineConfig({
     arcTestnet: {
       type: "http",
       chainType: "l1",
-      url: "https://rpc.testnet.arc.io",
+      url: "https://rpc.testnet.arc.network",
       accounts: [configVariable("ARC_PRIVATE_KEY")],
     },
   },

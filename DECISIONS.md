@@ -98,6 +98,32 @@ so indexing will use the arcscan Etherscan-compatible API: `https://testnet.arcs
 Conclusion: our own seed is still useful for a controlled demo, but we can also index
 **real** feedback + validation signals. EIP-712 attestation script stays a stretch, not a necessity.
 
+### Day 2 — verified ABIs pulled, live behaviour confirmed
+
+All 3 registries are **ERC1967 proxies**. Implementation contracts (ABIs saved to `src/lib/abis/`):
+
+| Proxy | Implementation | Impl name |
+|---|---|---|
+| `0x8004A818…` | `0x7274e874ca62410a93bd8bf61c69d8045e399c02` | `IdentityRegistryUpgradeable` |
+| `0x8004B663…` | `0x16e0fa7f7c56b9a767e34b192b51f921be31da34` | `ReputationRegistryUpgradeable` |
+| `0x8004Cb1B…` | `0xdb31f5d9167f8ebc8b30fbbf814c4d297c2d7f99` | `ValidationRegistryUpgradeable` |
+
+Verified signatures now in use (`src/lib/erc8004.ts`):
+- Identity: `register(string agentURI) -> uint256`, `ownerOf`, `tokenURI`, event `Registered(agentId, agentURI, owner)`
+- Reputation: `giveFeedback(agentId, int128 value, uint8 decimals, string tag1, string tag2, string endpoint, string feedbackURI, bytes32 feedbackHash)`, `readAllFeedback(...)`, event `NewFeedback(...)`
+- Validation: `validationRequest(validator, agentId, uri, hash)` → `validationResponse(requestHash, uint8 response, uri, hash, string tag)`, events `ValidationRequest` / `ValidationResponse`
+
+Smoke test vs live registries (agents 2, 6, 42): `resolveAgent` + `readAllFeedback` work.
+Agent 2 = 47 feedback rows, agent 6 = 46, agent 42 = 30. Agent Cards are `ipfs://…`.
+
+**Key finding — real Reputation tags are freeform sentiment, not capability-structured:**
+observed `tag1` values are `"good_service"`, `"fast_execution"`, `"successful_trade"`, …
+→ the standard's on-chain data is generic praise, not task/capability-typed.
+→ **confirms Path B**: ProofGraph's own `EvidenceRegistryV2` with explicit
+`capability` + `outcome` + `counterparty` is the structured layer 8004 lacks.
+8004 Reputation is consumed as a *supplementary* aggregate signal only; ProofGraph also acts
+as a Validation validator. (No A/B decision needed from the user — the on-chain data settled it.)
+
 ---
 
 ## 4. Fixed choices

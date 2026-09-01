@@ -1,12 +1,20 @@
 /**
  * ERC-8004 registries on Arc Testnet.
  *
- * Day 1: addresses verified on-chain (eth_getCode + eth_call). See DECISIONS.md §1.
- *   - IdentityRegistry is a live ERC-721: name() = "AgentIdentity", symbol() = "AGENT".
- *   - Reputation / Validation ABIs below are DERIVED FROM DOCS and NOT YET VERIFIED.
- *     Day 2: replace `*_ABI_UNVERIFIED` with ABIs pulled from arcscan / erc-8004/erc-8004-contracts.
+ * Day 1: addresses verified on-chain. Day 2: real ABIs pulled from arcscan.
+ * All three registries are ERC1967 proxies; ABIs in ./abis/*.json are the
+ * *implementation* ABIs (IdentityRegistryUpgradeable / ReputationRegistryUpgradeable /
+ * ValidationRegistryUpgradeable). See DECISIONS.md §1 for impl addresses.
  */
-import { createPublicClient, http, defineChain, type Address } from "viem";
+import { createPublicClient, http, defineChain, type Address, type Abi } from "viem";
+
+import identityAbiJson from "./abis/identityRegistry.json" with { type: "json" };
+import reputationAbiJson from "./abis/reputationRegistry.json" with { type: "json" };
+import validationAbiJson from "./abis/validationRegistry.json" with { type: "json" };
+
+export const IDENTITY_REGISTRY_ABI = identityAbiJson as Abi;
+export const REPUTATION_REGISTRY_ABI = reputationAbiJson as Abi;
+export const VALIDATION_REGISTRY_ABI = validationAbiJson as Abi;
 
 export const ARC_TESTNET_RPC = "https://rpc.testnet.arc.network";
 export const ARC_TESTNET_CHAIN_ID = 5042002;
@@ -17,48 +25,19 @@ export const arcTestnet = defineChain({
   name: "Arc Testnet",
   nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
   rpcUrls: { default: { http: [ARC_TESTNET_RPC] } },
-  blockExplorers: {
-    default: { name: "Arcscan", url: "https://testnet.arcscan.app" },
-  },
+  blockExplorers: { default: { name: "Arcscan", url: "https://testnet.arcscan.app" } },
 });
 
+/** Proxy addresses (what you call). */
 export const ERC8004 = {
   identityRegistry: "0x8004A818BFB912233c491871b3d84c89A494BD9e" as Address,
   reputationRegistry: "0x8004B663056A597Dffe9eCcC1965A193B7388713" as Address,
   validationRegistry: "0x8004Cb1BF31DAf7788923b405b754f57acEB4272" as Address,
 } as const;
 
-/** Verified: standard ERC-721 reads work on IdentityRegistry. */
-export const IDENTITY_REGISTRY_ABI = [
-  { type: "function", name: "name", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
-  { type: "function", name: "symbol", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
-  { type: "function", name: "ownerOf", stateMutability: "view", inputs: [{ name: "tokenId", type: "uint256" }], outputs: [{ type: "address" }] },
-  { type: "function", name: "tokenURI", stateMutability: "view", inputs: [{ name: "tokenId", type: "uint256" }], outputs: [{ type: "string" }] },
-  {
-    type: "event",
-    name: "Transfer",
-    inputs: [
-      { name: "from", type: "address", indexed: true },
-      { name: "to", type: "address", indexed: true },
-      { name: "tokenId", type: "uint256", indexed: true },
-    ],
-  },
-  // TODO Day 2: add register(...) + the registration/metadata events (topics observed:
-  //   0xca52e62c…, 0x2c149ed5…, 0xf8e1a15a… — decode against verified ABI).
-] as const;
+export const publicClient = createPublicClient({ chain: arcTestnet, transport: http() });
 
-// TODO Day 2 — replace with verified ABI. Observed feedback event topic: 0x6a4a6174…
-export const REPUTATION_REGISTRY_ABI_UNVERIFIED = [] as const;
-
-// TODO Day 2 — replace with verified ABI. Observed topics: request 0x530436c3…, response 0xafddf629…
-export const VALIDATION_REGISTRY_ABI_UNVERIFIED = [] as const;
-
-export const publicClient = createPublicClient({
-  chain: arcTestnet,
-  transport: http(),
-});
-
-/** Resolve an ERC-8004 agent identity. */
+/** Resolve an ERC-8004 agent identity from the IdentityRegistry. */
 export async function resolveAgent(agentId: bigint): Promise<{
   agentId: bigint;
   owner: Address;
@@ -70,16 +49,61 @@ export async function resolveAgent(agentId: bigint): Promise<{
       abi: IDENTITY_REGISTRY_ABI,
       functionName: "ownerOf",
       args: [agentId],
-    }),
+    }) as Promise<Address>,
     publicClient.readContract({
       address: ERC8004.identityRegistry,
       abi: IDENTITY_REGISTRY_ABI,
       functionName: "tokenURI",
       args: [agentId],
-    }),
+    }) as Promise<string>,
   ]);
   return { agentId, owner, cardUri };
 }
 
-// TODO Day 9: readReputationSignal(agentId), readValidationHistory(agentId)
-// TODO Target: publishValidationResponse(requestHash, status, ...) via server signer
+/**
+ * Read every feedback row for an agent from the ReputationRegistry.
+ * Signature (verified):
+ *   readAllFeedback(agentId, clientAddresses[], tag1, tag2, includeRevoked)
+ *     -> (address[] clients, uint64[] indexes, int128[] values, uint8[] decimals,
+ *         string[] tag1s, string[] tag2s, bool[] revoked)
+ * Passing empty arrays / empty tags = no filter.
+ */
+export async function readReputationFeedback(agentId: bigint) {
+  const res = (await publicClient.readContract({
+    address: ERC8004.reputationRegistry,
+    abi: REPUTATION_REGISTRY_ABI,
+    functionName: "readAllFeedback",
+    args: [agentId, [], "", "", false],
+  })) as readonly [
+    readonly Address[],
+    readonly bigint[],
+    readonly bigint[],
+    readonly number[],
+    readonly string[],
+    readonly string[],
+    readonly boolean[],
+  ];
+  const [clients, indexes, values, decimals, tag1s, tag2s, revoked] = res;
+  return clients.map((client, i) => ({
+    client,
+    feedbackIndex: indexes[i],
+    value: values[i],
+    valueDecimals: decimals[i],
+    tag1: tag1s[i],
+    tag2: tag2s[i],
+    revoked: revoked[i],
+  }));
+}
+
+/** Validation request hashes recorded for an agent. */
+export async function readAgentValidations(agentId: bigint): Promise<readonly `0x${string}`[]> {
+  return (await publicClient.readContract({
+    address: ERC8004.validationRegistry,
+    abi: VALIDATION_REGISTRY_ABI,
+    functionName: "getAgentValidations",
+    args: [agentId],
+  })) as readonly `0x${string}`[];
+}
+
+// TODO Day 9: fold reputation + validation into scoring `erc8004Signal`
+// TODO Target: publishValidationResponse(requestHash, response, uri, hash, tag) via server signer
