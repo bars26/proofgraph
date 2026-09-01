@@ -6,13 +6,9 @@
  * unreliable, so this is strictly best-effort: a failure never breaks a score response.
  */
 
-const IPFS_GATEWAYS = [
-  "https://ipfs.io/ipfs/",
-  "https://dweb.link/ipfs/",
-  "https://cloudflare-ipfs.com/ipfs/",
-] as const;
+const IPFS_GATEWAYS = ["https://ipfs.io/ipfs/", "https://dweb.link/ipfs/"] as const;
 
-const PER_GATEWAY_TIMEOUT_MS = 4000;
+const PER_GATEWAY_TIMEOUT_MS = 3000;
 
 export type AgentCard = {
   name?: string;
@@ -79,7 +75,20 @@ function parseCard(raw: unknown): AgentCard {
   };
 }
 
-/** Best-effort fetch + parse of an Agent Card. Never throws. */
+async function fetchOne(url: string): Promise<AgentCardResult> {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), PER_GATEWAY_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { signal: ctl.signal, redirect: "follow" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const raw = JSON.parse(await res.text());
+    return { ok: true, source: url, card: parseCard(raw) };
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+/** Best-effort fetch + parse of an Agent Card. Never throws. Gateways raced in parallel. */
 export async function fetchAgentCard(cardUri: string): Promise<AgentCardResult> {
   if (!cardUri) return { ok: false, reason: "empty cardUri" };
 
@@ -87,19 +96,9 @@ export async function fetchAgentCard(cardUri: string): Promise<AgentCardResult> 
     ? IPFS_GATEWAYS.map((g) => ipfsToHttp(cardUri, g))
     : [cardUri];
 
-  for (const url of candidates) {
-    try {
-      const ctl = new AbortController();
-      const t = setTimeout(() => ctl.abort(), PER_GATEWAY_TIMEOUT_MS);
-      const res = await fetch(url, { signal: ctl.signal, redirect: "follow" });
-      clearTimeout(t);
-      if (!res.ok) continue;
-      const text = await res.text();
-      const raw = JSON.parse(text);
-      return { ok: true, source: url, card: parseCard(raw) };
-    } catch {
-      // try the next gateway
-    }
+  try {
+    return await Promise.any(candidates.map(fetchOne));
+  } catch {
+    return { ok: false, reason: `could not fetch card from ${candidates.length} source(s)` };
   }
-  return { ok: false, reason: `could not fetch card from ${candidates.length} source(s)` };
 }
