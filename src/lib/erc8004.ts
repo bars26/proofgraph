@@ -105,5 +105,36 @@ export async function readAgentValidations(agentId: bigint): Promise<readonly `0
   })) as readonly `0x${string}`[];
 }
 
+const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+
+/**
+ * Resolve a user-supplied `agent` param to an ERC-8004 agentId.
+ * Numeric string -> that id. 0x-address -> the agent(s) they minted, lowest id first
+ * (looked up via the explorer API since the public RPC prunes history).
+ */
+export async function resolveAgentId(input: string): Promise<bigint> {
+  const s = input.trim();
+  if (/^\d+$/.test(s)) return BigInt(s);
+  if (!/^0x[0-9a-fA-F]{40}$/.test(s)) {
+    throw new Error(`"${input}" is neither a numeric agentId nor a 0x address`);
+  }
+  const owner = "0x" + "".padStart(24, "0") + s.slice(2).toLowerCase(); // 32-byte topic
+  const url =
+    `${ARCSCAN_API_URL}?module=logs&action=getLogs&fromBlock=0&toBlock=latest` +
+    `&address=${ERC8004.identityRegistry}&topic0=${TRANSFER_TOPIC}` +
+    `&topic0_2_opr=and&topic2=${owner}`;
+  const res = await fetch(url);
+  const body = (await res.json()) as { result?: Array<{ topics: string[] }> };
+  const mints = (body.result ?? []).filter((l) => l.topics?.[1] && BigInt(l.topics[1]) === 0n);
+  if (mints.length === 0) throw new Error(`no ERC-8004 agent minted by ${s}`);
+  const ids = [...new Set(mints.map((l) => BigInt(l.topics[3])))].sort((a, b) => (a < b ? -1 : 1));
+  if (ids.length > 1) {
+    throw new Error(
+      `${s} owns multiple agents [${ids.join(", ")}] — pass a numeric agentId instead`,
+    );
+  }
+  return ids[0];
+}
+
 // TODO Day 9: fold reputation + validation into scoring `erc8004Signal`
 // TODO Target: publishValidationResponse(requestHash, response, uri, hash, tag) via server signer

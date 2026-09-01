@@ -119,11 +119,11 @@ export type VerifiedEvidence = EvidenceV2 & {
 };
 
 /**
- * Rewrite the stored `uri` origin when `PROOFGRAPH_EVIDENCE_BASE_URL` is set
- * (seed URIs point at the production host; dev/tests point elsewhere).
+ * Rewrite the stored `uri` origin. Explicit `baseUrl` wins; otherwise
+ * `PROOFGRAPH_EVIDENCE_BASE_URL` (seed URIs point at the production host; dev points local).
  */
-function resolveUri(uri: string): string {
-  const base = process.env.PROOFGRAPH_EVIDENCE_BASE_URL;
+function resolveUri(uri: string, baseUrl?: string): string {
+  const base = baseUrl ?? process.env.PROOFGRAPH_EVIDENCE_BASE_URL;
   if (!base) return uri;
   try {
     const u = new URL(uri);
@@ -134,10 +134,14 @@ function resolveUri(uri: string): string {
 }
 
 /** Fetch one evidence record's off-chain doc and check it against the on-chain hash. */
-export async function verifyEvidence(e: EvidenceV2, fetchImpl: typeof fetch = fetch): Promise<VerifiedEvidence> {
+export async function verifyEvidence(
+  e: EvidenceV2,
+  opts: { fetchImpl?: typeof fetch; baseUrl?: string } = {},
+): Promise<VerifiedEvidence> {
+  const fetchImpl = opts.fetchImpl ?? fetch;
   let raw: string;
   try {
-    const res = await fetchImpl(resolveUri(e.uri));
+    const res = await fetchImpl(resolveUri(e.uri, opts.baseUrl));
     if (!res.ok) {
       return { ...e, verified: null, verifyReason: `fetch failed: HTTP ${res.status}`, doc: null };
     }
@@ -150,10 +154,20 @@ export async function verifyEvidence(e: EvidenceV2, fetchImpl: typeof fetch = fe
 }
 
 /** Verify a list of evidence records (bounded concurrency). */
-export async function verifyAll(list: EvidenceV2[], concurrency = 6): Promise<VerifiedEvidence[]> {
+export async function verifyAll(
+  list: EvidenceV2[],
+  opts: { concurrency?: number; baseUrl?: string; fetchImpl?: typeof fetch } = {},
+): Promise<VerifiedEvidence[]> {
+  const concurrency = opts.concurrency ?? 6;
   const out: VerifiedEvidence[] = [];
   for (let i = 0; i < list.length; i += concurrency) {
-    out.push(...(await Promise.all(list.slice(i, i + concurrency).map((e) => verifyEvidence(e)))));
+    out.push(
+      ...(await Promise.all(
+        list.slice(i, i + concurrency).map((e) =>
+          verifyEvidence(e, { baseUrl: opts.baseUrl, fetchImpl: opts.fetchImpl }),
+        ),
+      )),
+    );
   }
   return out;
 }

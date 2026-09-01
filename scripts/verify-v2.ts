@@ -38,7 +38,7 @@ console.log(`on-chain records: ${all.length}\n`);
 let ok = 0;
 let bad = 0;
 for (const e of all) {
-  const v = await verifyEvidence(e, diskFetch);
+  const v = await verifyEvidence(e, { fetchImpl: diskFetch });
   const mark = v.verified === true ? "✅" : v.verified === false ? "❌" : "⚠️";
   if (v.verified === true) ok++;
   else bad++;

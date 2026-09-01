@@ -65,8 +65,8 @@ const WEIGHTS = {
   erc8004: 0.05,
 } as const;
 
-function round1(n: number): number {
-  return Math.round(n * 10) / 10;
+function f2(n: number): string {
+  return n.toFixed(2);
 }
 
 export function scoreEvidence(
@@ -179,30 +179,28 @@ function buildReasons(
   const out: string[] = [];
 
   out.push(
-    `Smoothed success rate ${round1(successValue * 100) / 100} — ${c.successes} success / ${c.failures} failure (Beta(2,2) prior)`,
+    `Smoothed success rate ${f2(successValue)} — ${c.successes} success / ${c.failures} failure (Beta(2,2) prior)`,
   );
-  out.push(`${c.distinctVerifiers} independent verifier(s) (${round1(by("verifier").value)} of cap 4)`);
+  out.push(`${c.distinctVerifiers} independent verifier(s) (${f2(by("verifier").value)} of cap 4)`);
   out.push(`Evidence volume ${c.total} / 8`);
-  out.push(`Average freshness ${round1(freshness)} (45-day half-life)`);
+  out.push(`Average freshness ${f2(freshness)} (45-day half-life)`);
 
   const cp = by("counterparty");
   out.push(
     cp.applicable
-      ? `${c.distinctCounterparties} distinct counterpart(y/ies) (${round1(cp.value)} of cap 3)`
+      ? `${c.distinctCounterparties} distinct counterpart(y/ies) (${f2(cp.value)} of cap 3)`
       : "Counterparty diversity not assessed — no counterparties disclosed",
   );
 
   const e = by("erc8004");
   out.push(
     e.applicable
-      ? `ERC-8004 reputation/validation signal ${round1(e.value)}`
+      ? `ERC-8004 reputation/validation signal ${f2(e.value)}`
       : "No ERC-8004 reputation signal for this agent",
   );
 
   if (penalty > 0) {
-    out.push(
-      `${c.disputed} of ${c.total} outcome(s) disputed → score x${round1(1 - penalty)}`,
-    );
+    out.push(`${c.disputed} of ${c.total} outcome(s) disputed → score x${f2(1 - penalty)}`);
   }
   out.push(
     `Confidence: ${confidence} (${c.total} record(s), ${c.distinctVerifiers} verifier(s))`,
