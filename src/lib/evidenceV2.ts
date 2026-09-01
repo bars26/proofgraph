@@ -7,6 +7,7 @@
 import { type Address, getContract } from "viem";
 
 import { arcTestnet, publicClient } from "./erc8004";
+import { parseAndVerify, type EvidenceDoc } from "./evidenceDoc";
 import evidenceV2AbiJson from "./abis/evidenceRegistryV2.json" with { type: "json" };
 import type { Abi } from "viem";
 
@@ -106,6 +107,55 @@ export async function getAgentCapabilityEvidence(
     capability,
   ])) as readonly bigint[];
   return batch([...ids], address);
+}
+
+// --- off-chain verification --------------------------------------------------
+
+export type VerifiedEvidence = EvidenceV2 & {
+  /** true = hash matches; false = fetched but tampered/invalid; null = could not fetch. */
+  verified: boolean | null;
+  verifyReason: string;
+  doc: EvidenceDoc | null;
+};
+
+/**
+ * Rewrite the stored `uri` origin when `PROOFGRAPH_EVIDENCE_BASE_URL` is set
+ * (seed URIs point at the production host; dev/tests point elsewhere).
+ */
+function resolveUri(uri: string): string {
+  const base = process.env.PROOFGRAPH_EVIDENCE_BASE_URL;
+  if (!base) return uri;
+  try {
+    const u = new URL(uri);
+    return `${base.replace(/\/$/, "")}${u.pathname}`;
+  } catch {
+    return uri;
+  }
+}
+
+/** Fetch one evidence record's off-chain doc and check it against the on-chain hash. */
+export async function verifyEvidence(e: EvidenceV2, fetchImpl: typeof fetch = fetch): Promise<VerifiedEvidence> {
+  let raw: string;
+  try {
+    const res = await fetchImpl(resolveUri(e.uri));
+    if (!res.ok) {
+      return { ...e, verified: null, verifyReason: `fetch failed: HTTP ${res.status}`, doc: null };
+    }
+    raw = await res.text();
+  } catch (err) {
+    return { ...e, verified: null, verifyReason: `fetch error: ${(err as Error).message}`, doc: null };
+  }
+  const r = parseAndVerify(raw, e.evidenceHash);
+  return { ...e, verified: r.verified, verifyReason: r.reason, doc: r.doc };
+}
+
+/** Verify a list of evidence records (bounded concurrency). */
+export async function verifyAll(list: EvidenceV2[], concurrency = 6): Promise<VerifiedEvidence[]> {
+  const out: VerifiedEvidence[] = [];
+  for (let i = 0; i < list.length; i += concurrency) {
+    out.push(...(await Promise.all(list.slice(i, i + concurrency).map((e) => verifyEvidence(e)))));
+  }
+  return out;
 }
 
 export { arcTestnet };
