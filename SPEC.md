@@ -18,9 +18,9 @@ ProofGraph V2 produces a **task-aware reputation score** for an AI agent, derive
 
 ---
 
-## 2. Evidence model  — TODO (freeze Day 2)
+## 2. Evidence model  — FROZEN (Day 2–4)
 
-On-chain (`EvidenceRegistryV2`): compact, hash-committed.
+On-chain (`EvidenceRegistryV2` at `0x99848Ff9527C38c371D5c892a00677b90387aF4a`): compact, hash-committed.
 
 | Field | Type | Notes |
 |---|---|---|
@@ -41,39 +41,84 @@ External evidence adapters (read-only): `ReputationRegistry` feedback, `Validati
 
 ---
 
-## 3. Scoring formula  — TODO (freeze Day 5)
+## 3. Scoring formula  — FROZEN (Day 5), `formulaVersion = "v2.0"`
 
-Draft (see `DECISIONS.md` §5):
+Pure function `score(evidence[], { now, erc8004Signal? }) -> { score, confidence, terms[], reasons[], penalty }`.
+No network, no `Date.now()` inside — the caller passes `now` and (optionally) a pre-fetched
+`erc8004Signal`. Evidence is already filtered to one `(agentId, capability)`.
+
+### Counts
 
 ```
-filter evidence to the requested capability
-successRate          = WilsonLowerBound(successes, total, z=1.96)
-verifierDiversity     = min(distinctVerifiers, CAP_V) / CAP_V
-counterpartyDiversity = min(distinctCounterparties, CAP_C) / CAP_C
-recencyWeight         = normalise( Σ exp(-Δdays / HALF_LIFE) )
-volumeWeight          = min(total, CAP_N) / CAP_N
-erc8004Signal         = normalise(external reputation + validation pass rate)
-
-score = 100 * ( 0.40·successRate + 0.20·verifierDiversity + 0.10·counterpartyDiversity
-              + 0.10·recencyWeight + 0.10·volumeWeight + 0.10·erc8004Signal )
-
-CAP_V=5  CAP_C=5  CAP_N=20  HALF_LIFE=60d
-
-confidence:
-  none    total == 0
-  low     total < 3  OR distinctVerifiers < 2
-  medium  total < 8  OR distinctVerifiers < 3
-  high    otherwise
-
-reasons[]: one string per non-zero term, e.g.
-  "90% success rate (Wilson) over 12 evidence items"
-  "3 independent verifiers (diversity 0.60)"
-  "only 1 counterparty — low independence"
-  "most evidence within the last 60 days"
-  "ERC-8004 reputation signal: +4 net feedback"
+successes  = count(outcome == "Success")
+failures   = count(outcome == "Failure")
+disputed   = count(outcome == "Disputed")
+total      = evidence.length
+completed  = successes + failures               // disputed excluded from the rate
+distinctVerifiers      = unique(verifier)
+distinctCounterparties = unique(counterparty where counterparty != 0x0)
+ageDays_i  = max(0, (now - (doc.performedAt ?? onchain.timestamp)) / 86400)
 ```
 
-Determinism: pure function, no network, no clock read inside the formula (caller passes `now`).
+### Terms   `{ value ∈ [0,1], weight, applicable }`
+
+| term | value | weight | applicable when |
+|---|---|---|---|
+| `success` | `(successes + 2) / (completed + 4)` — Beta(2,2) shrinkage | **0.45** | always |
+| `verifier` | `min(distinctVerifiers, 4) / 4` | **0.20** | always |
+| `volume` | `min(total, 8) / 8` | **0.13** | always |
+| `recency` | `mean( exp(-ageDays_i / 45) )` | **0.12** | `total > 0` |
+| `counterparty` | `min(distinctCounterparties, 3) / 3` | **0.05** | `distinctCounterparties > 0` |
+| `erc8004` | `0.6 * repMean01 + 0.4 * validationPassRate` (from caller) | **0.05** | signal provided |
+
+`repMean01` = mean ERC-8004 `NewFeedback.value` (normalised by its `valueDecimals` to a
+0–1 range, clamped); `validationPassRate` = passed / total `ValidationResponse` for the agent.
+
+### Aggregate
+
+```
+base    = Σ(value_i * weight_i  for applicable i) / Σ(weight_i  for applicable i)
+penalty = (disputed / total) * 0.20                       // 0 if total == 0
+score   = round( 100 * base * (1 - penalty) )             // 0 if total == 0
+```
+
+Weight of a non-applicable term is dropped from both sums (not counted as 0) — e.g. an
+agent with no disclosed counterparties is *not assessed* on that axis rather than punished.
+
+### Confidence
+
+```
+none    total == 0
+low     total < 3  OR distinctVerifiers < 2
+medium  total < 6  OR distinctVerifiers < 3
+high    total >= 6 AND distinctVerifiers >= 3
+```
+
+### reasons[]  (one line per applicable term, plus penalty + confidence)
+
+```
+"Smoothed success rate 0.71 — 3 successes / 0 failures (Beta(2,2) prior)"
+"3 independent verifiers (0.75 of cap 4)"
+"Evidence volume 3 / 8"
+"Average freshness 0.39 (45-day half-life)"
+"Counterparty diversity not assessed — no counterparties disclosed"
+"No ERC-8004 reputation signal for this agent"
+"1 of 2 outcomes disputed → score x0.90"
+"Confidence: medium (4 records, 3 verifiers)"
+```
+
+### Reference values on the seed dataset (sanity anchors for tests)
+
+| agent | capability | ~score | confidence |
+|---|---|---|---|
+| 42 | Solidity Audit | 63–72 | medium |
+| 2 | Research | 58–68 | medium |
+| 6 | Coding | 58–68 | medium |
+| 7 | Research | 40–52 | low |
+| 2 | Solidity Audit | 32–44 | low |
+| 6 | Research | 30–42 | low |
+
+(Exact numbers depend on `now` and the live ERC-8004 signal; tests assert bands + ordering.)
 
 ---
 
