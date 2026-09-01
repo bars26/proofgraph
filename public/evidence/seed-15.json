@@ -1,0 +1,1 @@
+{"agentId":"42","capability":"Solidity Audit","outcome":"Success","performedAt":"2026-08-23T22:32:56.773Z","sourceRef":"seed","taskDescription":"Gas + invariant review of FxEscrow integration","verifierNote":"ProofGraph V2 seed dataset — not real production evidence"}
