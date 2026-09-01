@@ -158,16 +158,31 @@ Server-side signer (ProofGraph validator key). Guarded, not exposed publicly.
 
 ---
 
-## 5. ERC-8004 integration  — TODO (freeze Day 9)
+## 5. ERC-8004 integration  — FROZEN (Day 9)
 
-- **Read Identity**: `agentId → ownerOf(agentId)`, `tokenURI(agentId)` → Agent Card (skills, endpoints).
-- **Read Reputation**: index feedback events → `erc8004Signal` input.
-- **Read Validation**: index request/response → `erc8004Signal` input + show in evidence list.
-- **Write Validation (Target)**: ProofGraph registers its own `agentId`, then answers
-  `validationRequest` targeting its validator address with `validationResponse(requestHash, status, …)`
-  where `status`/payload encode the task-aware score + `evidenceHashRoot`.
+Implemented in `src/lib/erc8004.ts` + `src/lib/agentCard.ts`, assembled by
+`getErc8004Profile(agentId)` → `{ signal, reputation, validations }`.
 
-Contract addresses: see `DECISIONS.md` §1. ABIs: `src/lib/abis/` (pulled from arcscan, Day 2).
+- **Identity**: `resolveAgent(agentId)` → `ownerOf`, `tokenURI`. `resolveAgentId(str)`
+  accepts a numeric id or a `0x` address (address → agentId via explorer mint logs;
+  errors when a wallet owns several agents).
+- **Agent Card**: `fetchAgentCard(tokenURI)` — best-effort, tries 3 IPFS gateways with a
+  4 s timeout each, parses `{ name, description, url, skills[], endpoints{} }` loosely.
+  A fetch failure is surfaced as `{ ok: false, reason }` and never breaks a score.
+  _Known limitation: public IPFS gateways are unreliable; the seed agents' shared test
+  CID is not pinned, so cards resolve as `ok:false` on testnet. Production would use a
+  dedicated gateway / pinning service._
+- **Reputation**: `readReputationSummary` → `{ total, revoked, active, meanValue01, tags{} }`.
+  `meanValue01` (heuristic 0–1 normalisation of `NewFeedback.value`) feeds the scoring
+  `erc8004` term. The client-defined feedback scale means this is deliberately fuzzy.
+- **Validation**: `readValidationHistory` → per-request `{ validator, response, tag,
+  responseHash, lastUpdate }`. Pass rate (`response >= 50`) feeds the `erc8004` term.
+- **Write Validation (Target, Day 12)**: ProofGraph registers its own `agentId`, then
+  answers `validationRequest` targeting its validator address with
+  `validationResponse(requestHash, response, responseURI, responseHash, tag)` where
+  `response` = the task-aware score and `responseHash` commits to the evidence set.
+
+Contract addresses: see `DECISIONS.md` §1–2. ABIs: `src/lib/abis/` (verified impls, Day 2).
 
 ---
 

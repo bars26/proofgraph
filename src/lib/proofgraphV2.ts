@@ -4,7 +4,14 @@
  */
 import type { Address } from "viem";
 
-import { resolveAgent, readReputationFeedback, readAgentValidations, ERC8004, VALIDATION_REGISTRY_ABI, publicClient } from "./erc8004";
+import {
+  resolveAgent,
+  readReputationSummary,
+  readValidationHistory,
+  type ReputationSummary,
+  type ValidationRecord,
+} from "./erc8004";
+import { fetchAgentCard, type AgentCardResult } from "./agentCard";
 import { getAgentCapabilityEvidence, verifyAll, type VerifiedEvidence } from "./evidenceV2";
 import { scoreEvidence, type ScoreResult, type ScoringEvidence, type Erc8004Signal } from "./score";
 
@@ -17,63 +24,47 @@ export type CapabilityScore = ScoreResult & {
 };
 
 export type AgentScorecard = {
-  agent: { agentId: string; owner: Address; cardUri: string };
-  erc8004Signal: Erc8004Signal | null;
+  agent: { agentId: string; owner: Address; cardUri: string; card: AgentCardResult };
+  erc8004: Erc8004Profile;
   capabilities: CapabilityScore[];
   computedAt: string;
 };
 
-/** Heuristic 0..1 normalisation of an ERC-8004 feedback value (scale is client-defined). */
-function normFeedback(value: bigint, valueDecimals: number): number {
-  const v = Number(value) / 10 ** valueDecimals;
-  const scaled = v > 10 ? v / 100 : v > 1 ? v / 10 : v;
-  return Math.max(0, Math.min(1, scaled));
-}
-
 const VALIDATION_PASS_THRESHOLD = 50; // response uint8 >= 50 counts as a pass
+const r4 = (n: number) => Math.round(n * 1e4) / 1e4;
 
-/** Pull an agent's ERC-8004 reputation + validation signal, or null if it has neither. */
-export async function getErc8004Signal(agentId: bigint): Promise<Erc8004Signal | null> {
-  const [feedback, validationHashes] = await Promise.all([
-    readReputationFeedback(agentId).catch(() => []),
-    readAgentValidations(agentId).catch(() => [] as readonly `0x${string}`[]),
+export type Erc8004Profile = {
+  signal: Erc8004Signal | null;
+  reputation: ReputationSummary;
+  validations: ValidationRecord[];
+};
+
+/** One fetch of everything ProofGraph reads from ERC-8004 for an agent. */
+export async function getErc8004Profile(agentId: bigint): Promise<Erc8004Profile> {
+  const [reputation, validations] = await Promise.all([
+    readReputationSummary(agentId),
+    readValidationHistory(agentId),
   ]);
 
-  const live = feedback.filter((f) => !f.revoked);
-  const repMean01 =
-    live.length > 0
-      ? live.reduce((a, f) => a + normFeedback(f.value, f.valueDecimals), 0) / live.length
+  const validationPassRate =
+    validations.length > 0
+      ? validations.filter((v) => v.response >= VALIDATION_PASS_THRESHOLD).length / validations.length
       : null;
 
-  let validationPassRate: number | null = null;
-  if (validationHashes.length > 0) {
-    const statuses = await Promise.all(
-      validationHashes.map((h) =>
-        publicClient
-          .readContract({
-            address: ERC8004.validationRegistry,
-            abi: VALIDATION_REGISTRY_ABI,
-            functionName: "getValidationStatus",
-            args: [h],
-          })
-          .catch(() => null),
-      ),
-    );
-    const responses = statuses
-      .filter((s): s is readonly unknown[] => Array.isArray(s))
-      .map((s) => Number(s[2] as bigint | number)); // (validator, agentId, response, ...)
-    if (responses.length > 0) {
-      validationPassRate =
-        responses.filter((r) => r >= VALIDATION_PASS_THRESHOLD).length / responses.length;
-    }
-  }
+  const signal: Erc8004Signal | null =
+    reputation.meanValue01 === null && validationPassRate === null
+      ? null
+      : {
+          repMean01: r4(reputation.meanValue01 ?? 0.5),
+          validationPassRate: r4(validationPassRate ?? 0.5),
+        };
 
-  if (repMean01 === null && validationPassRate === null) return null;
-  const r4 = (n: number) => Math.round(n * 1e4) / 1e4;
-  return {
-    repMean01: r4(repMean01 ?? 0.5),
-    validationPassRate: r4(validationPassRate ?? 0.5),
-  };
+  return { signal, reputation, validations };
+}
+
+/** Just the scoring input (kept for callers that don't need the full profile). */
+export async function getErc8004Signal(agentId: bigint): Promise<Erc8004Signal | null> {
+  return (await getErc8004Profile(agentId)).signal;
 }
 
 function toScoringEvidence(e: VerifiedEvidence): ScoringEvidence {
@@ -121,20 +112,23 @@ export async function getAgentScorecard(
   opts: { now?: string; verify?: boolean; evidenceBaseUrl?: string } = {},
 ): Promise<AgentScorecard> {
   const now = opts.now ?? new Date().toISOString();
-  const [agent, erc8004Signal] = await Promise.all([resolveAgent(agentId), getErc8004Signal(agentId)]);
-  const capabilities = await Promise.all(
-    CAPABILITIES.map((c) =>
-      scoreCapability(agentId, c, {
-        now,
-        erc8004Signal,
-        verify: opts.verify,
-        evidenceBaseUrl: opts.evidenceBaseUrl,
-      }),
+  const [agent, erc8004] = await Promise.all([resolveAgent(agentId), getErc8004Profile(agentId)]);
+  const [card, capabilities] = await Promise.all([
+    fetchAgentCard(agent.cardUri),
+    Promise.all(
+      CAPABILITIES.map((c) =>
+        scoreCapability(agentId, c, {
+          now,
+          erc8004Signal: erc8004.signal,
+          verify: opts.verify,
+          evidenceBaseUrl: opts.evidenceBaseUrl,
+        }),
+      ),
     ),
-  );
+  ]);
   return {
-    agent: { agentId: agent.agentId.toString(), owner: agent.owner, cardUri: agent.cardUri },
-    erc8004Signal,
+    agent: { agentId: agent.agentId.toString(), owner: agent.owner, cardUri: agent.cardUri, card },
+    erc8004,
     capabilities,
     computedAt: now,
   };
@@ -198,11 +192,23 @@ export async function scoreCapabilityApi(
   now: string,
   evidenceBaseUrl?: string,
 ) {
-  const [agent, erc8004Signal] = await Promise.all([resolveAgent(agentId), getErc8004Signal(agentId)]);
-  const c = await scoreCapability(agentId, capability, { now, erc8004Signal, evidenceBaseUrl });
+  const [agent, erc8004] = await Promise.all([resolveAgent(agentId), getErc8004Profile(agentId)]);
+  const [card, c] = await Promise.all([
+    fetchAgentCard(agent.cardUri),
+    scoreCapability(agentId, capability, { now, erc8004Signal: erc8004.signal, evidenceBaseUrl }),
+  ]);
   return {
-    agent: { agentId: agent.agentId.toString(), address: agent.owner, cardUri: agent.cardUri },
-    erc8004Signal,
+    agent: {
+      agentId: agent.agentId.toString(),
+      address: agent.owner,
+      cardUri: agent.cardUri,
+      card,
+    },
+    erc8004: {
+      signal: erc8004.signal,
+      reputation: erc8004.reputation,
+      validations: erc8004.validations,
+    },
     ...shapeScore(c),
     formulaVersion: c.formulaVersion,
     computedAt: now,
@@ -211,12 +217,12 @@ export async function scoreCapabilityApi(
 
 /** SPEC §4 — GET /v2/api/agents/:id */
 export async function agentScorecardApi(agentId: bigint, now: string, evidenceBaseUrl?: string) {
-  const card = await getAgentScorecard(agentId, { now, evidenceBaseUrl });
+  const sc = await getAgentScorecard(agentId, { now, evidenceBaseUrl });
   return {
-    agent: card.agent,
-    erc8004Signal: card.erc8004Signal,
-    capabilities: card.capabilities.map(shapeScore),
-    formulaVersion: card.capabilities[0]?.formulaVersion ?? "v2.0",
-    computedAt: card.computedAt,
+    agent: sc.agent,
+    erc8004: sc.erc8004,
+    capabilities: sc.capabilities.map(shapeScore),
+    formulaVersion: sc.capabilities[0]?.formulaVersion ?? "v2.0",
+    computedAt: sc.computedAt,
   };
 }

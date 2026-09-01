@@ -105,6 +105,80 @@ export async function readAgentValidations(agentId: bigint): Promise<readonly `0
   })) as readonly `0x${string}`[];
 }
 
+export type ValidationRecord = {
+  requestHash: `0x${string}`;
+  validator: Address;
+  agentId: string;
+  response: number; // uint8
+  responseHash: `0x${string}`;
+  tag: string;
+  lastUpdate: number; // unix seconds
+};
+
+/** Full validation history for an agent (request hash + resolved response). */
+export async function readValidationHistory(agentId: bigint): Promise<ValidationRecord[]> {
+  const hashes = await readAgentValidations(agentId).catch(() => [] as readonly `0x${string}`[]);
+  if (hashes.length === 0) return [];
+  const rows = await Promise.all(
+    hashes.map(async (h) => {
+      try {
+        const s = (await publicClient.readContract({
+          address: ERC8004.validationRegistry,
+          abi: VALIDATION_REGISTRY_ABI,
+          functionName: "getValidationStatus",
+          args: [h],
+        })) as readonly [Address, bigint, number | bigint, `0x${string}`, string, bigint];
+        return {
+          requestHash: h,
+          validator: s[0],
+          agentId: s[1].toString(),
+          response: Number(s[2]),
+          responseHash: s[3],
+          tag: s[4],
+          lastUpdate: Number(s[5]),
+        } satisfies ValidationRecord;
+      } catch {
+        return null;
+      }
+    }),
+  );
+  return rows.filter((r): r is ValidationRecord => r !== null);
+}
+
+export type ReputationSummary = {
+  total: number;
+  revoked: number;
+  active: number;
+  /** mean of active NewFeedback.value normalised to 0..1 */
+  meanValue01: number | null;
+  /** histogram of tag1 labels over active feedback */
+  tags: Record<string, number>;
+};
+
+/** Aggregate an agent's ERC-8004 reputation feedback. */
+export async function readReputationSummary(agentId: bigint): Promise<ReputationSummary> {
+  const rows = await readReputationFeedback(agentId).catch(() => []);
+  const active = rows.filter((r) => !r.revoked);
+  const tags: Record<string, number> = {};
+  for (const r of active) {
+    const t = r.tag1 || "(none)";
+    tags[t] = (tags[t] ?? 0) + 1;
+  }
+  const norm = active.map((r) => {
+    const v = Number(r.value) / 10 ** r.valueDecimals;
+    const scaled = v > 10 ? v / 100 : v > 1 ? v / 10 : v;
+    return Math.max(0, Math.min(1, scaled));
+  });
+  const mean = norm.length ? norm.reduce((a, b) => a + b, 0) / norm.length : null;
+  return {
+    total: rows.length,
+    revoked: rows.length - active.length,
+    active: active.length,
+    meanValue01: mean === null ? null : Math.round(mean * 1e4) / 1e4,
+    tags,
+  };
+}
+
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
 /**

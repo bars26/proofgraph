@@ -37,8 +37,11 @@ for (const id of [2n, 6n, 42n, 7n]) {
   const card = await getAgentScorecard(id, { now: NOW });
   console.log(`\n═══ agent ${card.agent.agentId}  owner ${card.agent.owner}`);
   console.log(`    card ${card.agent.cardUri}`);
+  const sig = card.erc8004.signal;
   console.log(
-    `    erc8004 signal: ${card.erc8004Signal ? `rep ${card.erc8004Signal.repMean01.toFixed(2)} / val ${card.erc8004Signal.validationPassRate.toFixed(2)}` : "none"}`,
+    `    erc8004: ${sig ? `rep ${sig.repMean01.toFixed(2)} / val ${sig.validationPassRate.toFixed(2)}` : "no signal"}` +
+      ` | ${card.erc8004.reputation.active} feedback, ${card.erc8004.validations.length} validations` +
+      ` | card: ${card.agent.card.ok ? (card.agent.card.card.name ?? "(unnamed)") : card.agent.card.reason}`,
   );
   for (const c of card.capabilities) {
     const verified = c.evidence.filter((e) => e.verified === true).length;
