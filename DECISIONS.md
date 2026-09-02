@@ -43,6 +43,15 @@ Function shapes (from Arc docs — must be re-confirmed against verified ABIs on
 |---|---|---|
 | **EvidenceRegistryV2** | `0x99848Ff9527C38c371D5c892a00677b90387aF4a` | `ignition/deployments/evidence-registry-v2/` |
 
+### ProofGraph validator identity — registered Day 12
+
+ProofGraph now has its own **ERC-8004 identity**: `agentId 889819`, minted by the deployer.
+`tokenURI` = `https://proofgraph-gamma.vercel.app/agent-card.json` (in repo at `public/`).
+The identity is the discoverable profile (skills = the 4 capabilities, endpoints = the
+`/v2` API); the **operating wallet** that signs `validationResponse` is the same
+`0x4f80b5c4…` deployer address (the `PROOFGRAPH_VALIDATOR` in `src/lib/validatorV2.ts`).
+register tx: `0xca53f0f6e447b423561f74b5e26c990a48612cf47ef0523f7209dc94702a7d4a`
+
 Deployer: `0x4f80b5c475fced34fc9a07ffccf39e1adc1406bf`. Bytecode 4175 B. `evidenceCount` starts at 0.
 Wired into `.env.local` as `NEXT_PUBLIC_EVIDENCE_REGISTRY_V2` (gitignored).
 Explorer: https://testnet.arcscan.app/address/0x99848Ff9527C38c371D5c892a00677b90387aF4a
