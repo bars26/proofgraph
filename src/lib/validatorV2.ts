@@ -106,7 +106,10 @@ export async function respondToValidation(params: {
     params.capability,
   ])) as `0x${string}`;
 
-  await publicClient.waitForTransactionReceipt({ hash: txHash });
+  const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+  if (receipt.status !== "success") {
+    throw new Error(`validationResponse reverted (tx ${txHash})`);
+  }
 
   return {
     requestHash: params.requestHash,

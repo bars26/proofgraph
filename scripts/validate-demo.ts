@@ -144,6 +144,7 @@ if (already === 0n) {
     await publicClient.waitForTransactionReceipt({ hash: tx });
     console.log(`   #${i + 1} ${s.cap}/${s.outcome} by ${wc.account.address.slice(0, 10)}`);
   }
+  await new Promise((r) => setTimeout(r, 3000)); // let RPC replicas catch up after seeding
 } else {
   console.log(`agent ${subjectId} already has ${already} evidence records — skipping seed`);
 }
@@ -166,15 +167,35 @@ for (const capability of CAP_TO_VALIDATE) {
   await publicClient.waitForTransactionReceipt({ hash: reqTx });
   console.log(`   request  ${requestHash.slice(0, 18)}…  tx ${reqTx.slice(0, 18)}…`);
 
+  // testnet RPC replicas lag: wait until the request is readable before responding
+  for (let i = 0; i < 20; i++) {
+    try {
+      await readReg.read.getValidationStatus([requestHash]);
+      break;
+    } catch {
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+  }
+  await new Promise((r) => setTimeout(r, 2000));
+
   const parsed = parseRequestURI(requestURI);
-  const res = await respondToValidation({
-    wallet: validatorWallet,
-    requestHash,
-    agentId: parsed.agentId ?? subjectId,
-    capability: parsed.capability ?? capability,
-    now: NOW,
-    baseUrl: BASE,
-  });
+  const doRespond = () =>
+    respondToValidation({
+      wallet: validatorWallet,
+      requestHash,
+      agentId: parsed.agentId ?? subjectId,
+      capability: parsed.capability ?? capability,
+      now: NOW,
+      baseUrl: BASE,
+    });
+  let res;
+  try {
+    res = await doRespond();
+  } catch (e) {
+    console.log(`   (response reverted, retrying in 4s: ${(e as Error).message})`);
+    await new Promise((r) => setTimeout(r, 4000));
+    res = await doRespond();
+  }
   console.log(`   response score=${res.response} (${res.confidence})  tx ${res.txHash.slice(0, 18)}…`);
   console.log(`   attestationHash ${res.responseHash.slice(0, 18)}…`);
 
