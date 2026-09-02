@@ -177,10 +177,17 @@ Implemented in `src/lib/erc8004.ts` + `src/lib/agentCard.ts`, assembled by
   `erc8004` term. The client-defined feedback scale means this is deliberately fuzzy.
 - **Validation**: `readValidationHistory` → per-request `{ validator, response, tag,
   responseHash, lastUpdate }`. Pass rate (`response >= 50`) feeds the `erc8004` term.
-- **Write Validation (Target, Day 12)**: ProofGraph registers its own `agentId`, then
-  answers `validationRequest` targeting its validator address with
-  `validationResponse(requestHash, response, responseURI, responseHash, tag)` where
-  `response` = the task-aware score and `responseHash` commits to the evidence set.
+- **Write Validation (DONE, Day 12)**: ProofGraph's identity is `agentId 889819`
+  (`src/lib/validatorV2.ts` `PROOFGRAPH_VALIDATOR`; operating wallet = the deployer).
+  `respondToValidation({ wallet, requestHash, agentId, capability })` computes the
+  task-aware score, builds a canonical `ScoreAttestation` (`{ agentId, capability,
+  score, confidence, formulaVersion, evidenceHashes[], computedAt }`) + its keccak256,
+  and calls `validationResponse(requestHash, score, responseURI, attestationHash, tag)`
+  — `tag` = capability, `responseURI` = the `/v2/api/score` URL. `parseRequestURI()`
+  recovers `(agent, capability)` from a request URI. `validationRequest` is caller-gated
+  to the agent's owner, so `scripts/validate-demo.ts` registers a subject agent it
+  controls, seeds it, then runs request → response → `getValidationStatus` read-back.
+  Requests with no response yet (`tag == ""`) are excluded from `validationPassRate`.
 
 Contract addresses: see `DECISIONS.md` §1–2. ABIs: `src/lib/abis/` (verified impls, Day 2).
 

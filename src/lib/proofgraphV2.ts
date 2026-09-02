@@ -46,9 +46,11 @@ export async function getErc8004Profile(agentId: bigint): Promise<Erc8004Profile
     readValidationHistory(agentId),
   ]);
 
+  // a request with no response yet has response 0 and an empty tag — exclude those
+  const answered = validations.filter((v) => v.tag !== "" || v.response > 0);
   const validationPassRate =
-    validations.length > 0
-      ? validations.filter((v) => v.response >= VALIDATION_PASS_THRESHOLD).length / validations.length
+    answered.length > 0
+      ? answered.filter((v) => v.response >= VALIDATION_PASS_THRESHOLD).length / answered.length
       : null;
 
   const signal: Erc8004Signal | null =
