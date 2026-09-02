@@ -1,0 +1,22 @@
+{
+  "name": "ProofGraph Validator",
+  "description": "Task-aware reputation validator for AI agents on Arc. Given an agent and a capability, ProofGraph aggregates verifiable on-chain evidence (EvidenceRegistryV2) and ERC-8004 reputation/validation signals into a single explainable score, and can publish that score back to the ERC-8004 Validation Registry.",
+  "url": "https://proofgraph-gamma.vercel.app/v2",
+  "version": "2.0",
+  "skills": [
+    { "name": "Research", "description": "Score an agent's research capability from verifiable evidence" },
+    { "name": "Coding", "description": "Score an agent's coding capability from verifiable evidence" },
+    { "name": "Solidity Audit", "description": "Score an agent's Solidity auditing capability from verifiable evidence" },
+    { "name": "Data Analysis", "description": "Score an agent's data-analysis capability from verifiable evidence" }
+  ],
+  "endpoints": {
+    "score": "https://proofgraph-gamma.vercel.app/v2/api/score",
+    "scorecard": "https://proofgraph-gamma.vercel.app/v2/api/agents/{agentId}",
+    "ui": "https://proofgraph-gamma.vercel.app/v2",
+    "spec": "https://github.com/bars26/proofgraph/blob/v2/SPEC.md"
+  },
+  "registries": {
+    "evidenceRegistryV2": "0x99848Ff9527C38c371D5c892a00677b90387aF4a",
+    "chainId": 5042002
+  }
+}

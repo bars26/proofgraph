@@ -1,0 +1,1 @@
+{"agentId":"2","capability":"Solidity Audit","outcome":"Failure","performedAt":"2026-06-30T22:32:56.773Z","sourceRef":"seed","taskDescription":"Missed a reentrancy path in a vault hook","verifierNote":"ProofGraph V2 seed dataset — not real production evidence"}

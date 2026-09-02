@@ -1,0 +1,49 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_28-ce86a8bd377a66ba7708a5559b1882dd79138bb1",
+  "solcVersion": "0.8.28",
+  "solcLongVersion": "0.8.28+commit.7893614a",
+  "compilerType": "solc",
+  "toolVersions": {
+    "hardhat": "3.14.0"
+  },
+  "userSourceNameMap": {
+    "contracts/EvidenceRegistryV2.sol": "project/contracts/EvidenceRegistryV2.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "cancun",
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode.linkReferences",
+            "evm.bytecode.object",
+            "evm.bytecode.opcodes",
+            "evm.bytecode.sourceMap",
+            "evm.deployedBytecode.immutableReferences",
+            "evm.deployedBytecode.linkReferences",
+            "evm.deployedBytecode.object",
+            "evm.deployedBytecode.opcodes",
+            "evm.deployedBytecode.sourceMap",
+            "evm.methodIdentifiers"
+          ]
+        }
+      },
+      "remappings": []
+    },
+    "sources": {
+      "project/contracts/EvidenceRegistryV2.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.28;\n\n/// @title ProofGraph Evidence Registry V2\n/// @notice Stores capability-structured, hash-committed evidence about AI agent work.\n/// @dev V2 additions over V1: ERC-8004 `agentId` as the identity key, an explicit\n///      `outcome` enum, a `counterparty`, and an off-chain `uri` alongside the hash.\n///      Kept self-contained (no external registry calls) so it stays cheap and easy to\n///      audit. Callers are expected to pass a real ERC-8004 IdentityRegistry `agentId`.\ncontract EvidenceRegistryV2 {\n    enum Outcome {\n        Success,\n        Failure,\n        Disputed\n    }\n\n    struct Evidence {\n        uint256 id;\n        uint256 agentId;\n        string capability;\n        Outcome outcome;\n        address counterparty;\n        bytes32 evidenceHash;\n        string uri;\n        address verifier;\n        uint256 timestamp;\n    }\n\n    uint256 public evidenceCount;\n\n    mapping(uint256 => Evidence) private evidences;\n    mapping(uint256 => uint256[]) private agentEvidenceIds;\n    mapping(uint256 => mapping(bytes32 => uint256[])) private agentCapabilityEvidenceIds;\n\n    event EvidenceSubmitted(\n        uint256 indexed id,\n        uint256 indexed agentId,\n        address indexed verifier,\n        string capability,\n        Outcome outcome,\n        address counterparty,\n        bytes32 evidenceHash,\n        string uri,\n        uint256 timestamp\n    );\n\n    error EmptyCapability();\n    error EmptyEvidenceHash();\n    error EmptyUri();\n    error EvidenceNotFound(uint256 id);\n\n    /// @notice Record one piece of evidence about `agentId` performing a `capability` task.\n    /// @param agentId ERC-8004 IdentityRegistry token id of the agent.\n    /// @param capability Free-form capability label (e.g. \"Solidity Audit\").\n    /// @param outcome Success / Failure / Disputed.\n    /// @param counterparty Who the work was for; `address(0)` if undisclosed.\n    /// @param evidenceHash `keccak256` of the canonical off-chain evidence JSON.\n    /// @param uri Where that JSON can be fetched.\n    /// @return id The new evidence id (1-indexed).\n    function submitEvidence(\n        uint256 agentId,\n        string calldata capability,\n        Outcome outcome,\n        address counterparty,\n        bytes32 evidenceHash,\n        string calldata uri\n    ) external returns (uint256 id) {\n        if (bytes(capability).length == 0) revert EmptyCapability();\n        if (evidenceHash == bytes32(0)) revert EmptyEvidenceHash();\n        if (bytes(uri).length == 0) revert EmptyUri();\n\n        id = ++evidenceCount;\n\n        evidences[id] = Evidence({\n            id: id,\n            agentId: agentId,\n            capability: capability,\n            outcome: outcome,\n            counterparty: counterparty,\n            evidenceHash: evidenceHash,\n            uri: uri,\n            verifier: msg.sender,\n            timestamp: block.timestamp\n        });\n\n        agentEvidenceIds[agentId].push(id);\n        agentCapabilityEvidenceIds[agentId][keccak256(bytes(capability))].push(id);\n\n        emit EvidenceSubmitted(\n            id,\n            agentId,\n            msg.sender,\n            capability,\n            outcome,\n            counterparty,\n            evidenceHash,\n            uri,\n            block.timestamp\n        );\n    }\n\n    function getEvidence(uint256 id) external view returns (Evidence memory) {\n        if (id == 0 || id > evidenceCount) revert EvidenceNotFound(id);\n        return evidences[id];\n    }\n\n    /// @notice Batch read, for frontends that need many records in one call.\n    function getEvidenceBatch(uint256[] calldata ids) external view returns (Evidence[] memory list) {\n        list = new Evidence[](ids.length);\n        for (uint256 i = 0; i < ids.length; i++) {\n            uint256 id = ids[i];\n            if (id == 0 || id > evidenceCount) revert EvidenceNotFound(id);\n            list[i] = evidences[id];\n        }\n    }\n\n    function getAgentEvidenceIds(uint256 agentId) external view returns (uint256[] memory) {\n        return agentEvidenceIds[agentId];\n    }\n\n    function getAgentEvidenceCount(uint256 agentId) external view returns (uint256) {\n        return agentEvidenceIds[agentId].length;\n    }\n\n    function getAgentCapabilityEvidenceIds(\n        uint256 agentId,\n        string calldata capability\n    ) external view returns (uint256[] memory) {\n        return agentCapabilityEvidenceIds[agentId][keccak256(bytes(capability))];\n    }\n\n    function getAgentCapabilityEvidenceCount(\n        uint256 agentId,\n        string calldata capability\n    ) external view returns (uint256) {\n        return agentCapabilityEvidenceIds[agentId][keccak256(bytes(capability))].length;\n    }\n}\n"
+      }
+    }
+  }
+}
