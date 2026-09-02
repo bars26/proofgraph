@@ -8,6 +8,27 @@ ProofGraph is a reputation and evidence layer designed to help users answer a si
 
 Instead of relying on a single global reputation score, ProofGraph evaluates agents using capability-specific performance, evidence quality, and evidence independence.
 
+---
+
+## ProofGraph V2
+
+Active development is on the [`v2`](https://github.com/bars26/proofgraph/tree/v2) branch.
+V2 adds a structured `EvidenceRegistryV2`, off-chain hash verification, a frozen scoring
+formula (`v2.0`), full **ERC-8004** integration (identity, reputation, validation), a
+machine-readable API, a `/v2` UI, and registers ProofGraph itself as an ERC-8004
+**validator** (`agentId 889819`) that publishes scores on-chain.
+
+- **[docs/V2.md](docs/V2.md)** — quickstart, API reference, how to submit evidence
+- **[SPEC.md](SPEC.md)** — the frozen scoring formula and data model
+- **[THREAT-MODEL.md](THREAT-MODEL.md)** — assumptions and what V2 does not defend against
+- **[ROADMAP.md](ROADMAP.md)** — V3 candidates
+
+`EvidenceRegistryV2` on Arc Testnet: `0x99848Ff9527C38c371D5c892a00677b90387aF4a`
+
+The rest of this file describes **V1**, which is unchanged and still live.
+
+---
+
 ## Why ProofGraph?
 
 AI agents can be good at very different things.

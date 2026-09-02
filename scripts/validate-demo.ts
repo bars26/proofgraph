@@ -10,7 +10,7 @@
  *   3. getValidationStatus(hash) is read back
  * Idempotent: registration + seeding are skipped if already done.
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { network } from "hardhat";
@@ -117,13 +117,15 @@ const evReadonly = getContract({ address: EVIDENCE_V2, abi: EVIDENCE_REGISTRY_V2
 const already = (await evReadonly.read.getAgentEvidenceCount([subjectId])) as bigint;
 if (already === 0n) {
   console.log(`seeding ${SUBJECT_EVIDENCE.length} evidence records for agent ${subjectId}…`);
+  mkdirSync(join(process.cwd(), "public/evidence"), { recursive: true });
+  const anchor = Date.parse(NOW);
   for (let i = 0; i < SUBJECT_EVIDENCE.length; i++) {
     const s = SUBJECT_EVIDENCE[i];
     const doc: EvidenceDoc = {
       agentId: subjectId.toString(),
       capability: s.cap,
       outcome: s.outcome,
-      performedAt: new Date(Date.now() - s.daysAgo * 86_400_000).toISOString(),
+      performedAt: new Date(anchor - s.daysAgo * 86_400_000).toISOString(),
       taskDescription: s.note,
       sourceRef: "validate-demo",
       verifierNote: "ProofGraph validation demo evidence",
@@ -131,6 +133,7 @@ if (already === 0n) {
     const canonical = canonicalEvidenceJson(doc);
     const fileName = `demo-${subjectId}-${String(i + 1).padStart(2, "0")}.json`;
     docStore.set(`/evidence/${fileName}`, canonical);
+    writeFileSync(join(process.cwd(), "public/evidence", fileName), canonical + "\n");
     const wc = seedVerifiers[(i + 1) % seedVerifiers.length];
     const ev = getContract({ address: EVIDENCE_V2, abi: EVIDENCE_REGISTRY_V2_ABI, client: wc });
     const tx = (await ev.write.submitEvidence([
