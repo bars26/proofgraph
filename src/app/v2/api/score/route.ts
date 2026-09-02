@@ -3,6 +3,7 @@ import { resolveAgentId } from "@/lib/erc8004";
 import { CAPABILITIES, isCapability, scoreCapabilityApi } from "@/lib/proofgraphV2";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
 export function OPTIONS() {
   return corsPreflight();

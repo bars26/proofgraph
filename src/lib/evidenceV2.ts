@@ -29,15 +29,12 @@ export type EvidenceV2 = {
   at: string; // ISO
 };
 
-/** Address of the deployed V2 registry. Filled in after the Day 3 deploy. */
+/** The live Arc Testnet deployment (Day 3). Env var overrides it for local/other deploys. */
+export const EVIDENCE_REGISTRY_V2_DEFAULT: Address =
+  "0x99848Ff9527C38c371D5c892a00677b90387aF4a";
+
 export function evidenceRegistryV2Address(): Address {
-  const a = process.env.NEXT_PUBLIC_EVIDENCE_REGISTRY_V2;
-  if (!a) {
-    throw new Error(
-      "NEXT_PUBLIC_EVIDENCE_REGISTRY_V2 is not set — deploy EvidenceRegistryV2 (Day 3) and add its address to .env / .env.local",
-    );
-  }
-  return a as Address;
+  return (process.env.NEXT_PUBLIC_EVIDENCE_REGISTRY_V2 as Address) ?? EVIDENCE_REGISTRY_V2_DEFAULT;
 }
 
 function contract(address?: Address) {
