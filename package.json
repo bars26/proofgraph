@@ -7,9 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "mcp": "tsx packages/proofgraph-mcp/src/index.ts"
+    "mcp": "tsx packages/proofgraph-mcp/src/index.ts",
+    "x402:selftest": "tsx scripts/x402-selftest.ts"
   },
   "dependencies": {
+    "@x402/core": "^2.25.0",
+    "@x402/evm": "^2.25.0",
+    "@x402/fetch": "^2.25.0",
+    "@x402/next": "^2.25.0",
     "next": "16.3.2",
     "react": "19.2.8",
     "react-dom": "19.2.8"
