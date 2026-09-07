@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "mcp": "tsx packages/proofgraph-mcp/src/index.ts",
-    "x402:selftest": "tsx scripts/x402-selftest.ts"
+    "x402:selftest": "tsx scripts/x402-selftest.ts",
+    "x402:demo": "tsx scripts/x402-demo.ts"
   },
   "dependencies": {
     "@x402/core": "^2.25.0",
