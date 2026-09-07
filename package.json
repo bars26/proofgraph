@@ -6,14 +6,22 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "mcp": "tsx packages/proofgraph-mcp/src/index.ts",
+    "x402:selftest": "tsx scripts/x402-selftest.ts",
+    "x402:demo": "tsx scripts/x402-demo.ts"
   },
   "dependencies": {
+    "@x402/core": "^2.25.0",
+    "@x402/evm": "^2.25.0",
+    "@x402/fetch": "^2.25.0",
+    "@x402/next": "^2.25.0",
     "next": "16.3.2",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@nomicfoundation/hardhat-ignition": "^3.1.8",
     "@nomicfoundation/hardhat-toolbox": "^7.0.0",
     "@nomicfoundation/hardhat-toolbox-viem": "^5.0.7",
@@ -26,8 +34,10 @@
     "forge-std": "github:foundry-rs/forge-std#v1.9.4",
     "hardhat": "^3.14.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.13",
     "typescript": "^5.9.3",
-    "viem": "^2.55.19"
+    "viem": "^2.55.19",
+    "zod": "^3.25.76"
   },
   "type": "module"
 }

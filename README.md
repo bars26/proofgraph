@@ -25,6 +25,25 @@ machine-readable API, a `/v2` UI, and registers ProofGraph itself as an ERC-8004
 
 `EvidenceRegistryV2` on Arc Testnet: `0x99848Ff9527C38c371D5c892a00677b90387aF4a`
 
+---
+
+## ProofGraph V2.5
+
+Two additive features on top of V2 — V1 and V2 are untouched. See
+**[docs/V2.5.md](docs/V2.5.md)**.
+
+- **x402 payment layer** — `/v2/api/score` and `/v2/api/agents/[id]` can charge USDC
+  per query over [x402](https://x402.org) on Arc, so an agent pays for a task-aware
+  trust score before hiring another agent. First _N_ queries/client/day stay free
+  (env-configurable); with the facilitator key unset the API is free and behaves
+  exactly as V2. Proven end-to-end on Arc Testnet (`exact` scheme over EIP-3009,
+  self-hosted in-process facilitator). `npm run x402:selftest`, `npm run x402:demo`.
+- **MCP server** — [`packages/proofgraph-mcp`](packages/proofgraph-mcp/README.md):
+  any MCP client (Claude Desktop, an agent runtime) can ask for an explained score
+  conversationally. Read-only, no wallet. `npm run mcp`.
+
+---
+
 The rest of this file describes **V1**, which is unchanged and still live.
 
 ---

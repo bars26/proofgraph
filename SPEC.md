@@ -207,4 +207,48 @@ Placeholder. Must state at minimum:
 
 - V1 (`/`, `EvidenceRegistry` at `0x865BF223…` / `0x08bAa6fE…`) is frozen and stays live.
 - V2 is additive: new contract, new routes under `/v2`, new libs. No V1 file is modified.
-- `formulaVersion` string is bumped on any scoring change.
+- V2.5 is additive: an optional x402 wrapper on the existing `/v2/api/*` handlers and a
+  standalone MCP package. No V2 scoring code or route contract changes. See §8.
+- `formulaVersion` string is bumped on any scoring change. V2.5 does not touch it.
+
+---
+
+## 8. x402 payment layer (V2.5)
+
+Optional. Off by default — with `X402_FACILITATOR_PRIVATE_KEY` unset every wrapper is a
+pass-through and `/v2/api/*` behaves exactly as §4 describes.
+
+- **Wrapper**: `withFreeAllowanceThenX402(handler, path, priceUsd, description)`
+  (`src/lib/x402Gate.ts`). First `PROOFGRAPH_X402_FREE_PER_DAY` requests / client / day
+  are free (in-memory counter, keyed on `x-forwarded-for` / `x-real-ip`); `0` ⇒ always
+  charge. After that, a valid payment is required. `?x402=require` on the query string
+  forces the paid path regardless of remaining allowance (used by the `/v2` panel,
+  self-test and demo).
+  - `/v2/api/score` → `$0.01`
+  - `/v2/api/agents/[id]` → `$0.02`
+- **Scheme**: x402 `exact` over **EIP-3009** `transferWithAuthorization`. Asset = Arc
+  USDC `0x3600…0000` (6 decimals); network = `eip155:5042002`. The client signs an
+  authorization, the facilitator submits it.
+- **Facilitator**: self-hosted, in-process (`src/lib/x402.ts`). Arc is in no hosted
+  facilitator's network list, but `@x402/evm`'s `ExactEvmScheme` is chain-agnostic. A
+  viem wallet (`X402_FACILITATOR_PRIVATE_KEY`, funded with a little Arc USDC — gas on
+  Arc is USDC) runs `verify` (EIP-712 sig / `validAfter` / `validBefore` / nonce) then
+  `settle` (broadcast `transferWithAuthorization` → `PROOFGRAPH_X402_PAY_TO`, default
+  the facilitator address).
+- **Payment requirements** carry `extra: { name: "USDC", version: "2" }` — Arc USDC's
+  EIP-712 domain, needed because it is not in x402's built-in asset table (verified
+  on-chain: recomputed `DOMAIN_SEPARATOR` matches).
+- **Response**: `200` + the score body (§4) + a `PAYMENT-RESPONSE` header — base64 JSON
+  `{ success, transaction, network, payer }` where `transaction` is the Arc settlement
+  tx hash. CORS exposes `payment-response` (and legacy `x-payment-response`).
+- **Client**: `makePayingFetch(privateKey)` (`src/lib/x402Client.ts`) — a `fetch` that
+  auto-signs and retries the 402. Spend controls allow Arc USDC with a $1 / payment cap.
+- **Not on mainnet.** Testnet only; a real deployment needs a shared free-tier store and
+  a hardened facilitator key.
+
+### MCP server (V2.5)
+
+`packages/proofgraph-mcp` — `@proofgraph/mcp`, stdio transport, wraps
+`src/lib/proofgraphV2.ts` directly (no HTTP, no payment). Tools: `get_agent_score`,
+`get_agent_scorecard`, `resolve_agent`, `list_capabilities`. Read-only; advisory output,
+same `v2.0` formula.

@@ -1,0 +1,15 @@
+{
+  "name": "@proofgraph/mcp",
+  "version": "2.5.0",
+  "private": true,
+  "description": "MCP server for ProofGraph — task-aware AI agent trust scores on Arc",
+  "type": "module",
+  "bin": {
+    "proofgraph-mcp": "./src/index.ts"
+  },
+  "scripts": {
+    "start": "tsx src/index.ts"
+  },
+  "keywords": ["mcp", "proofgraph", "arc", "erc-8004", "agent", "reputation"],
+  "license": "MIT"
+}
