@@ -94,6 +94,12 @@ export default function V2Page() {
       setError(null);
       try {
         const r = await fetch(`/v2/api/agents/${encodeURIComponent(agentId)}`);
+        if (r.status === 402) {
+          throw new Error(
+            "This endpoint is behind the x402 paywall and the free allowance is used up. " +
+              "Lower PROOFGRAPH_X402_FREE_PER_DAY, or query it with a paying client (npm run x402:demo).",
+          );
+        }
         const j = await r.json();
         if (!r.ok) throw new Error(j.hint || j.error || `HTTP ${r.status}`);
         if (!ignore) setData(j as Scorecard);
@@ -210,6 +216,7 @@ export default function V2Page() {
             </div>
 
             {cap && <CapabilityPanel cap={cap} agentId={data.agent.agentId} formulaVersion={data.formulaVersion} />}
+            {cap && <X402Panel agentId={data.agent.agentId} capability={cap.capability} />}
           </>
         )}
 
@@ -461,6 +468,134 @@ function Mini({ label, value }: { label: string; value: string | number }) {
     <div className="rounded-lg bg-slate-950 px-3 py-2">
       <p className="text-slate-500">{label}</p>
       <p className="mt-0.5 text-sm font-semibold text-white">{value}</p>
+    </div>
+  );
+}
+
+type X402Accept = {
+  scheme: string;
+  network: string;
+  amount: string;
+  asset: string;
+  payTo: string;
+  maxTimeoutSeconds?: number;
+  extra?: { name?: string; version?: string };
+};
+
+/**
+ * "Pay per query" panel. Fires a raw (unpaid) request at the score endpoint and
+ * shows what an agent hits: a 402 with x402 payment requirements when the paywall
+ * is on, or a free 200 when it isn't. The browser can't sign an EIP-3009
+ * authorization without a wallet, so paying itself is the `npm run x402:demo` CLI.
+ */
+function X402Panel({ agentId, capability }: { agentId: string; capability: Capability }) {
+  const [state, setState] = useState<
+    | { phase: "idle" }
+    | { phase: "loading" }
+    | { phase: "paywalled"; accept: X402Accept }
+    | { phase: "free"; status: number }
+    | { phase: "error"; message: string }
+  >({ phase: "idle" });
+
+  const path = `/v2/api/score?agent=${agentId}&capability=${encodeURIComponent(capability)}`;
+
+  const probe = async () => {
+    setState({ phase: "loading" });
+    try {
+      // `x402=require` forces the paid path even if free allowance is left.
+      const r = await fetch(`${path}&x402=require`);
+      if (r.status === 402) {
+        const header = r.headers.get("payment-required");
+        if (!header) {
+          setState({ phase: "error", message: "402 with no payment-required header" });
+          return;
+        }
+        const decoded = JSON.parse(atob(header)) as { accepts: X402Accept[] };
+        setState({ phase: "paywalled", accept: decoded.accepts[0] });
+      } else {
+        setState({ phase: "free", status: r.status });
+      }
+    } catch (e) {
+      setState({ phase: "error", message: (e as Error).message });
+    }
+  };
+
+  const usd = (a: string, decimals: number) => `$${(Number(a) / 10 ** decimals).toFixed(2)}`;
+  const snippet = `import { makePayingFetch } from "@/lib/x402Client";
+
+const { fetch: pay } = makePayingFetch(AGENT_ARC_KEY);
+const res = await pay("${typeof window !== "undefined" ? window.location.origin : ""}${path}");
+const score = await res.json();               // 200 — score body
+res.headers.get("payment-response");           // Arc settlement tx`;
+
+  return (
+    <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900 p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-widest text-slate-500">Pay per query · x402</p>
+          <p className="mt-1 text-sm text-slate-400">
+            An agent can buy this score over{" "}
+            <a href="https://x402.org" className="underline hover:text-cyan-300">
+              x402
+            </a>{" "}
+            — USDC on Arc, settled on-chain — before hiring another agent.
+          </p>
+        </div>
+        <button
+          onClick={probe}
+          className="rounded-lg border border-cyan-400/50 bg-cyan-400/10 px-3 py-1.5 text-xs font-medium text-cyan-300 transition hover:bg-cyan-400/20"
+        >
+          Simulate an agent request
+        </button>
+      </div>
+
+      {state.phase === "loading" && <p className="mt-4 text-sm text-slate-400">Requesting…</p>}
+
+      {state.phase === "error" && (
+        <p className="mt-4 rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2 text-xs text-red-300">
+          {state.message}
+        </p>
+      )}
+
+      {state.phase === "free" && (
+        <p className="mt-4 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-400">
+          HTTP {state.status} — the paywall is not enforced here (free allowance, or{" "}
+          <code className="text-slate-300">X402_FACILITATOR_PRIVATE_KEY</code> unset). The score
+          above was free. Enable it and the same request returns 402.
+        </p>
+      )}
+
+      {state.phase === "paywalled" && (
+        <div className="mt-4">
+          <div className="rounded-lg border border-cyan-400/20 bg-slate-950 p-4">
+            <p className="text-xs font-semibold uppercase tracking-widest text-cyan-300">
+              402 Payment Required
+            </p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-4">
+              <Mini label="price" value={usd(state.accept.amount, 6)} />
+              <Mini label="asset" value={state.accept.extra?.name ?? "USDC"} />
+              <Mini label="network" value={state.accept.network} />
+              <Mini label="scheme" value={state.accept.scheme} />
+            </div>
+            <a
+              href={`${EXPLORER}/address/${state.accept.payTo}`}
+              className="mt-3 block text-xs text-slate-400 hover:text-cyan-300"
+            >
+              pay to {short(state.accept.payTo)}
+            </a>
+          </div>
+          <p className="mt-3 text-xs text-slate-500">
+            The browser has no wallet to sign the EIP-3009 authorization — run the paying client:
+          </p>
+          <code className="mt-2 block overflow-x-auto whitespace-pre rounded-lg bg-slate-950 p-3 text-xs text-slate-400">
+            {snippet}
+          </code>
+          <p className="mt-2 text-xs text-slate-600">
+            or <code className="text-slate-400">npm run x402:demo</code> — an orchestrator paying per
+            query to pick the best agent.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

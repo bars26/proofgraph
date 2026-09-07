@@ -221,7 +221,9 @@ pass-through and `/v2/api/*` behaves exactly as §4 describes.
 - **Wrapper**: `withFreeAllowanceThenX402(handler, path, priceUsd, description)`
   (`src/lib/x402Gate.ts`). First `PROOFGRAPH_X402_FREE_PER_DAY` requests / client / day
   are free (in-memory counter, keyed on `x-forwarded-for` / `x-real-ip`); `0` ⇒ always
-  charge. After that, a valid payment is required.
+  charge. After that, a valid payment is required. `?x402=require` on the query string
+  forces the paid path regardless of remaining allowance (used by the `/v2` panel,
+  self-test and demo).
   - `/v2/api/score` → `$0.01`
   - `/v2/api/agents/[id]` → `$0.02`
 - **Scheme**: x402 `exact` over **EIP-3009** `transferWithAuthorization`. Asset = Arc

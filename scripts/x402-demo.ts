@@ -55,7 +55,8 @@ function settlementTx(res: Response): string | null {
 }
 
 async function buyScore(payFetch: typeof fetch, agentId: string): Promise<Quote> {
-  const url = `${BASE}/v2/api/score?agent=${agentId}&capability=${encodeURIComponent(TASK.capability)}`;
+  // `x402=require` skips the free daily allowance so the demo always pays.
+  const url = `${BASE}/v2/api/score?agent=${agentId}&capability=${encodeURIComponent(TASK.capability)}&x402=require`;
   const res = await payFetch(url);
   if (!res.ok) throw new Error(`score query for agent ${agentId} failed: ${res.status} ${await res.text()}`);
   const body = (await res.json()) as {

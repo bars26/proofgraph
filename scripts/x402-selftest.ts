@@ -12,7 +12,9 @@
 import { makePayingFetch } from "../src/lib/x402Client";
 
 const BASE = process.env.PROOFGRAPH_BASE_URL ?? "http://localhost:3100";
-const URL_ = `${BASE}/v2/api/score?agent=42&capability=${encodeURIComponent("Solidity Audit")}`;
+// `x402=require` forces the paid path regardless of the free daily allowance, so
+// this test is deterministic no matter what PROOFGRAPH_X402_FREE_PER_DAY is set to.
+const URL_ = `${BASE}/v2/api/score?agent=42&capability=${encodeURIComponent("Solidity Audit")}&x402=require`;
 const buyerKey = process.env.X402_BUYER_PRIVATE_KEY;
 if (!buyerKey) throw new Error("set X402_BUYER_PRIVATE_KEY to a funded Arc wallet");
 
