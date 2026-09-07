@@ -33,8 +33,9 @@ const { fetch: payFetch, payerAddress } = makePayingFetch(buyerKey);
 console.log(`\n   buyer: ${payerAddress}`);
 const paid = await payFetch(URL_);
 check("paid request returns 200", paid.status === 200, `got ${paid.status}`);
-const settlement = paid.headers.get("x-payment-response");
-check("x-payment-response header present", Boolean(settlement), settlement?.slice(0, 80) ?? "(none)");
+// x402 v2 emits `PAYMENT-RESPONSE`; older servers used `X-PAYMENT-RESPONSE`.
+const settlement = paid.headers.get("payment-response") ?? paid.headers.get("x-payment-response");
+check("payment-response (settlement) header present", Boolean(settlement), settlement?.slice(0, 80) ?? "(none)");
 const body = await paid.json().catch(() => ({}));
 check(
   "response body has a score",

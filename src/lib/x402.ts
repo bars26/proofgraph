@@ -24,6 +24,14 @@ export const ARC_X402_NETWORK = `eip155:${arcTestnet.id}` as const; // "eip155:5
 /** Arc USDC, ERC-20 (6-decimal) view. Native gas is the same asset, 18-decimal view. */
 export const ARC_USDC: Address = "0x3600000000000000000000000000000000000000";
 export const ARC_USDC_DECIMALS = 6;
+/**
+ * EIP-712 domain of the Arc USDC contract, needed for the `exact` scheme's
+ * `transferWithAuthorization` signature. Arc USDC is a Circle FiatTokenProxy;
+ * `name() = "USDC"`, `version() = "2"` (verified on-chain — the recomputed
+ * DOMAIN_SEPARATOR matches). x402 only knows these for its built-in asset table,
+ * so we hand them over explicitly in the payment requirements' `extra`.
+ */
+export const ARC_USDC_EIP712 = { name: "USDC", version: "2" } as const;
 
 /** Where paid-query USDC lands. Defaults to the facilitator address. */
 export function payToAddress(): Address {
@@ -66,7 +74,11 @@ export function getResourceServer(): x402ResourceServer {
   if (_resourceServer) return _resourceServer;
   const evmServer = new ExactEvmServer().registerMoneyParser(async (amount, network) => {
     if (network !== ARC_X402_NETWORK) return null;
-    return { asset: ARC_USDC, amount: parseUnits(String(amount), ARC_USDC_DECIMALS).toString() };
+    return {
+      asset: ARC_USDC,
+      amount: parseUnits(String(amount), ARC_USDC_DECIMALS).toString(),
+      extra: { ...ARC_USDC_EIP712 },
+    };
   });
   _resourceServer = new x402ResourceServer(buildLocalFacilitatorClient()).register(ARC_X402_NETWORK, evmServer);
   return _resourceServer;

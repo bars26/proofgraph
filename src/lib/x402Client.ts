@@ -14,6 +14,12 @@ import { arcTestnet } from "./erc8004";
 
 const ARC_NETWORK = `eip155:${arcTestnet.id}` as const;
 
+// Arc's native USDC (6-decimal ERC-20 view). x402's client spend controls only
+// trust assets its `findDefaultAsset` table knows; Arc USDC isn't in it, so we
+// allow it explicitly and cap each payment at $1 (1_000_000 atomic units).
+const ARC_USDC = "0x3600000000000000000000000000000000000000";
+const MAX_PER_PAYMENT_ATOMIC = "1000000";
+
 /** A `fetch` that pays x402 charges from `privateKey` (a funded Arc wallet). */
 export function makePayingFetch(privateKey: string, baseFetch: typeof fetch = fetch) {
   const account = privateKeyToAccount(
@@ -21,7 +27,13 @@ export function makePayingFetch(privateKey: string, baseFetch: typeof fetch = fe
   );
   const publicClient = createPublicClient({ chain: arcTestnet, transport: http() });
   const signer = toClientEvmSigner(account, publicClient);
-  const client = new x402Client().register(ARC_NETWORK, new ExactEvmScheme(signer));
+  const client = new x402Client()
+    .setSpendControls({
+      allowedAssets: [
+        { network: ARC_NETWORK, asset: ARC_USDC, maxAmountPerPayment: MAX_PER_PAYMENT_ATOMIC },
+      ],
+    })
+    .register(ARC_NETWORK, new ExactEvmScheme(signer));
   return {
     payerAddress: account.address,
     fetch: wrapFetchWithPayment(baseFetch, client),

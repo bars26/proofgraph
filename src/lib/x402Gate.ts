@@ -25,6 +25,7 @@ function clientKey(req: NextRequest): string {
 
 /** true while the client is still inside its free daily allowance (and consumes one). */
 function consumeFreeAllowance(req: NextRequest): boolean {
+  if (FREE_QUERIES_PER_DAY <= 0) return false; // 0 ⇒ always charge
   const day = new Date().toISOString().slice(0, 10);
   const key = clientKey(req);
   const b = buckets.get(key);

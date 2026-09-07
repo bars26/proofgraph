@@ -4,8 +4,8 @@ import { NextResponse } from "next/server";
 const CORS = {
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "GET, OPTIONS",
-  "access-control-allow-headers": "content-type, x-payment",
-  "access-control-expose-headers": "x-payment-response",
+  "access-control-allow-headers": "content-type, x-payment, payment-signature",
+  "access-control-expose-headers": "payment-response, x-payment-response",
 } as const;
 
 /** BigInt-safe JSON: stringify bigints as decimal strings. */
